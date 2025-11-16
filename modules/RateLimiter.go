@@ -5,13 +5,13 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"anti-ddos/pkg/logger"
+
+	"anti-ddos/utils"
 
 	"github.com/gofiber/fiber/v3"
 	"go.uber.org/zap"
@@ -36,29 +36,9 @@ type RateLimiter struct {
 }
 
 var (
-	cleanupInterval = getEnvAsInt("RATE_LIMIT_CLEANUP_INTERVAL", 60)
-	clientTTL       = getEnvAsInt("RATE_LIMIT_CLIENT_TTL", 180)
+	cleanupInterval = utils.GetEnvAsInt("RATE_LIMIT_CLEANUP_INTERVAL", 60)
+	clientTTL       = utils.GetEnvAsInt("RATE_LIMIT_CLIENT_TTL", 180)
 )
-
-// ------------------- Helper functions -------------------
-
-func getEnvAsInt(name string, defaultVal int) int {
-	if valStr, exists := os.LookupEnv(name); exists {
-		if val, err := strconv.Atoi(valStr); err == nil {
-			return val
-		}
-	}
-	return defaultVal
-}
-
-func getEnvAsFloat(name string, defaultVal float64) float64 {
-	if valStr, exists := os.LookupEnv(name); exists {
-		if val, err := strconv.ParseFloat(valStr, 64); err == nil {
-			return val
-		}
-	}
-	return defaultVal
-}
 
 // ------------------- IP extraction -------------------
 
