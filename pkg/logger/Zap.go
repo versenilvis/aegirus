@@ -80,7 +80,7 @@ func getConsoleEncoder() zapcore.Encoder {
 
 func getWriterSync() zapcore.WriteSyncer {
 	// Create log directory if it doesn't exist
-	if err := os.MkdirAll("../log", 0755); err != nil {
+	if err := os.MkdirAll("../log", 0o755); err != nil {
 		panic(err)
 	}
 

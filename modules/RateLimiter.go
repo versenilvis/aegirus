@@ -201,7 +201,7 @@ func (rl *RateLimiter) Cleanup(ctx context.Context) {
 	}
 }
 
-// Metrics :
+// Metrics : log, dashboard, ...
 // Optional: get metrics
 func (rl *RateLimiter) Metrics() (activeClients int, blocked int) {
 	rl.mu.RLock()
