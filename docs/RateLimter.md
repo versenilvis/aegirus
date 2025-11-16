@@ -163,11 +163,3 @@ func main() {
 * Cleanup routine avoids memory leaks
 * Metrics for monitoring request flow
 
----
-
-## 11. **Next Enhancements (Optional)**
-
-* Whitelist / blacklist IP addresses
-* Limit per user token
-* Advanced DDoS detection: scan patterns, burst anomalies
-
