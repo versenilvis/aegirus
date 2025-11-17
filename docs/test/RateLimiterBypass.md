@@ -45,7 +45,7 @@ Example: `http://example.com/resource?id=123&random=987`
 ### 5. HTTP Method Switch (GET/POST/PUT/PATCH/HEAD/OPTIONS)
 In certain situations, bypassing weakly configured [WAFs](https://www.cloudflare.com/learning/ddos/glossary/web-application-firewall-waf/) or blacklists can be achieved by switching the HTTP request method. This involves transferring `POST` parameters to the URL as `GET` parameters, or the reverse. Additionally, experimenting with methods like `PUT` or `PATCH` may yield similar results.
 
-#### 6. Protocol Downgrading (HTTP/1.1, HTTP/2)
+### 6. Protocol Downgrading (HTTP/1.1, HTTP/2)
 Some applications apply rate-limiting logic differently for `HTTP/1.1` and `HTTP/2`, creating opportunities for attackers to exploit inconsistencies.
 - **Track rate limits per HTTP connection**: This is common with `HTTP/1.1` because each request uses a separate connection, and rate limits may be enforced by counting the number of open connections.
 - **Track rate limits per request in HTTP/2**: Since `HTTP/2` multiplexes requests, a rate limit may focus on the total number of requests made through the connection, not on the connection itself.
@@ -53,7 +53,7 @@ Some applications apply rate-limiting logic differently for `HTTP/1.1` and `HTTP
 - Scenario 1: Bypassing `HTTP/2` rate limits by downgrading to `HTTP/1.1`, where rate limits may be less strict.
 - Scenario 2: Exploiting `HTTP/2` multiplexing to send multiple requests in parallel over a single connection, bypassing connection-based rate limits.
 
-#### 7. The Route Alteration Strategy
+### 7. The Route Alteration Strategy
 Rate-limiting is often tied to particular endpoint routes, and altering the route slightly can sometimes bypass these limitations. By appending `/.` or `/..` to the endpoint, the request might no longer match the rate-limiting rules, allowing for additional requests.
 How it works:
 - Modification Technique: Append `/.` or `/..` to the route.
@@ -62,7 +62,7 @@ How it works:
   <img width="708" height="248" alt="image" src="https://github.com/user-attachments/assets/72bc52b1-fc16-4930-94b1-2a9a4dec4c92" />
 </div>
 
-#### 8. Adding characters such as null bytes, carriage returns, or spaces.
+### 8. Adding characters such as null bytes, carriage returns, or spaces.
 In username-based rate limiting systems, it may be feasible to create inconsistencies between the code that processes login attempts and the code that enforces rate limiting by adding specific characters. For instance, appending characters like `%00` to an email, such as `example@email.com%00`, could result in the login code interpreting it as `example@email.com`, while the rate-limiting logic might see it as a separate entry, allowing one to bypass the rate limit.
 
 Experiment with adding or prepending characters such as `%00`, `%20`, `%09`, `%0d`, or `%0a` for similar effects.
@@ -70,27 +70,28 @@ Experiment with adding or prepending characters such as `%00`, `%20`, `%09`, `%0
   <img width="619" height="245" alt="image" src="https://github.com/user-attachments/assets/6c845d61-4d1b-4c8c-a0a1-b95e7a6013b2" />
 </div>
 
-#### 9. Encoding
+### 9. Encoding
 For instance, submitting `e%78ample@em%61il.com` may be interpreted as `example@email.com` by the authentication code, while the rate-limiting system could treat it as a distinct email address, thus bypassing rate limits.
 <div align="center">
   <img width="610" height="248" alt="image" src="https://github.com/user-attachments/assets/f127c4b7-1977-4e46-9a7f-c8c36a421ce4" />
 </div>
 
-#### 10. Bypassing CDN-based Rate Limiting
+### 10. Bypassing CDN-based Rate Limiting
 Attackers can access the origin server directly, bypassing CDN protections like Cloudflare by targeting the server’s IP address.
 
 Example: `http://origin-ip-address/resource`
 
- #### 11. IP Rotation
+ ### 11. IP Rotation
 
 This technique involves rotating IP addresses to bypass rate limits that track requests based on IP addresses. Attackers can use VPNs, proxies, or TOR to change their IP after reaching the limit.
 
-#### 12. Referer Header Spoofing
+### 12. Referer Header Spoofing
 
 In very rare cases, Rate Limit may be implemented on the Referer header.
 
 Attackers can spoof the Referer header to bypass rate limits that rely on this header to verify the source of the requests.
 
-#### 13. Cookie Manipulation
+### 13. Cookie Manipulation
 
 Clearing or changing cookies may reset the rate-limiting counter, tricking the server into treating the request as new.
+
