@@ -34,7 +34,8 @@ func main() {
 			)
 			return c.SendString("Request successful")
 		})
-	if err := app.Listen(":" + utils.GetEnv("BACKEND_PORT", "8080")); err != nil {
+	port := utils.GetEnv("PORT", "8080")
+	if err := app.Listen(":" + port); err != nil {
 		cancel()
 		panic(err)
 	}
