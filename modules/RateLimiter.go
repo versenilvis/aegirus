@@ -63,7 +63,7 @@ func getClientIP(c fiber.Ctx) string {
 			}
 		}
 	}
-	ip := c.IP()
+	ip := getClientIP(c)
 	if ip != "" && net.ParseIP(ip) != nil {
 		return ip
 	}
