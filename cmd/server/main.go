@@ -25,8 +25,8 @@ func main() {
 		return c.SendString("Hello World")
 	})
 	app.Get("/api/test",
-		detector.Middleware(),
 		rl.RateLimiterMiddleware(),
+		detector.Middleware(),
 		func(c fiber.Ctx) error {
 			logger.Log.Info("Request passed RateLimiter",
 				zap.String("ip", c.IP()),
