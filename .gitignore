@@ -5,7 +5,6 @@ tmp/
 .env*
 coverage/
 *.test
-go.sum
 go.work*
 .DS_Store
 !.env.example
