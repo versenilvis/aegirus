@@ -15,19 +15,25 @@ func main() {
 	logger.InitLogger()
 	app := fiber.New()
 
+	detector := modules.NewDetector()
 	rl := modules.NewRateLimiter(10, 5, 10, 60)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go rl.Cleanup(ctx)
-
-	app.Get("/api/test", rl.RateLimiterMiddleware(), func(c fiber.Ctx) error {
-		logger.Log.Info("Request passed RateLimiter",
-			zap.String("ip", c.IP()),
-			zap.String("path", c.Path()),
-		)
-		return c.SendString("Request successful")
+	app.Get("", func(c fiber.Ctx) error {
+		return c.SendString("Hello World")
 	})
+	app.Get("/api/test",
+		detector.Middleware(),
+		rl.RateLimiterMiddleware(),
+		func(c fiber.Ctx) error {
+			logger.Log.Info("Request passed RateLimiter",
+				zap.String("ip", c.IP()),
+				zap.String("path", c.Path()),
+			)
+			return c.SendString("Request successful")
+		})
 	if err := app.Listen(":" + utils.GetEnv("BACKEND_PORT", "8080")); err != nil {
 		cancel()
 		panic(err)
