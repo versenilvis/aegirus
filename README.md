@@ -8,11 +8,18 @@
 
 <div align="center">
   
+  [![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
+  [![Docker](https://img.shields.io/badge/Docker-2CA5E0?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+  [![Railway](https://img.shields.io/badge/Railway-131415?style=for-the-badge&logo=railway&logoColor=white)](https://railway.com/)
+
+</div>
+
+<div align="center">
+  
   [![License: Apache 2.0](https://img.shields.io/badge/License-APACHE_2.0-blue?style=for-the-badge&logo=github&logoColor=white)](./LICENSE.md)
   [![Status](https://img.shields.io/badge/status-beta-yellow?style=for-the-badge&logo=github&logoColor=white)]()
   [![Documentation](https://img.shields.io/badge/docs-available-brightgreen?style=for-the-badge&logo=github&logoColor=white)](./docs/README.md)
   [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=for-the-badge&logo=github&logoColor=white)](./CONTRIBUTING.md)
-  [![Go](https://img.shields.io/badge/Go-1.25.x-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
   
 </div>
 
