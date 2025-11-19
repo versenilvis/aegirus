@@ -87,12 +87,12 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 
 		if info.Score >= BanThreshold {
 			info.BannedUntil = now.Add(BanDuration)
-			info.Score = 0
 
 			logger.Log.Warn("IP Banned by Detector",
 				zap.String("ip", ip),
 				zap.Int("score", info.Score),
 			)
+			info.Score = 0
 		}
 
 		d.mu.Unlock()
