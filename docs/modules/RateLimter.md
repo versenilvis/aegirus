@@ -33,7 +33,7 @@ The module behavior is controlled via Environment Variables (`.env`) and constru
 
 -----
 
-## 🛠️ Internal Logic
+## Internal Logic
 
 ### 1\. The Key Strategy
 
@@ -108,7 +108,7 @@ func main() {
 
 -----
 
-## 📖 API Reference
+## API Reference
 
 ### `NewRateLimiter(...)`
 
