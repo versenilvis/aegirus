@@ -47,7 +47,7 @@ func main() {
 
 		func(c fiber.Ctx) error {
 			logger.Log.Info("Request passed",
-				zap.String("ip", c.IP()),
+				zap.String("ip", utils.GetClientIP(c)),
 				zap.String("path", c.Path()),
 			)
 			return c.SendString("Request successful")
