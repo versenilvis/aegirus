@@ -17,7 +17,13 @@ import (
 func main() {
 	logger.InitLogger()
 	// NOTE: make sure to write logs to file before exit
-	defer logger.Log.Sync()
+	defer func() {
+		err := logger.Log.Sync()
+		if err != nil {
+			// Nếu lỗi, in ra màn hình bằng fmt để biết (thường là lỗi vô hại)
+			logger.Log.Panic("Log sync error: %v\n", zap.Error(err))
+		}
+	}()
 
 	app := fiber.New()
 
