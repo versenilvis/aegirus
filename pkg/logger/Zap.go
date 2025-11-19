@@ -1,3 +1,4 @@
+// Package logger - Zap
 package logger
 
 import (
@@ -15,7 +16,6 @@ import (
 
 var Log *zap.Logger
 
-// go run cmd/cli/main.log.go
 func InitLogger() {
 	// sugar := z.NewExample().Sugar()
 	// sugar.Infof("Hello: %s, Age: %d", "Verse", 100)

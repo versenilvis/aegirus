@@ -26,11 +26,7 @@ func main() {
 	}()
 
 	cfg := config.LoadConfig()
-	logger.Log.Info("Application Configuration Loaded",
-		zap.String("port", cfg.Port),
-		zap.Any("detector_config", cfg.Detector),
-		zap.Any("rate_limiter_config", cfg.RateLimiter),
-	)
+	logger.Log.Info("Application Configuration Loaded", zap.Object("config", cfg))
 
 	app := fiber.New()
 
