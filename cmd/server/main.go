@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"anti-ddos/config"
@@ -12,10 +13,13 @@ import (
 	"anti-ddos/utils"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 )
 
 func main() {
+	godotenv.Load()
+
 	logger.InitLogger()
 	// NOTE: make sure to write logs to file before exit
 	defer func() {
@@ -28,8 +32,26 @@ func main() {
 	cfg := config.LoadConfig()
 	logger.Log.Info("Application Configuration Loaded", zap.Object("config", cfg))
 
+	trustedProxies := utils.GetEnv("TRUSTED_PROXIES", "")
+	var proxyConfig fiber.TrustProxyConfig
+	enableTrust := false
+
+	if trustedProxies != "" {
+		enableTrust = true
+		proxyConfig = fiber.TrustProxyConfig{
+			Proxies: strings.Split(trustedProxies, ","),
+		}
+	}
+
 	app := fiber.New(fiber.Config{
-		ProxyHeader: fiber.HeaderXForwardedFor,
+		TrustProxy:       enableTrust,
+		TrustProxyConfig: proxyConfig,
+		ProxyHeader: func() string {
+			if enableTrust {
+				return fiber.HeaderXForwardedFor
+			}
+			return ""
+		}(),
 	})
 
 	d := modules.NewDetector(cfg.Detector)
@@ -57,7 +79,7 @@ func main() {
 
 	// Graceful Shutdown
 	go func() {
-		port := utils.GetEnv("PORT", "8080")
+		port := utils.GetEnv("PORT", "3000")
 		if err := app.Listen(":" + port); err != nil {
 			logger.Log.Panic("Server failed to start", zap.Error(err))
 		}

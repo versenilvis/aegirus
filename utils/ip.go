@@ -3,8 +3,6 @@ package utils
 import (
 	"net"
 	"strings"
-
-	"github.com/gofiber/fiber/v3"
 )
 
 // ------------------- IP extraction -------------------
@@ -28,38 +26,6 @@ func ParseForwardedHeader(forwarded string) string {
 		if net.ParseIP(ip) != nil {
 			return ip
 		}
-	}
-	return ""
-}
-
-func GetClientIP(c fiber.Ctx) string {
-	if forwarded := c.Get("Forwarded"); forwarded != "" {
-		if ip := ParseForwardedHeader(forwarded); ip != "" {
-			return ip
-		}
-	}
-
-	headers := []string{
-		"CF-Connecting-IP",
-		"True-Client-IP",
-		"X-Real-IP",
-		"X-Forwarded-For",
-		"X-Client-IP",
-	}
-	for _, h := range headers {
-		if ip := c.Get(h); ip != "" {
-			ips := strings.Split(ip, ",")
-			if len(ips) > 0 {
-				clientIP := strings.TrimSpace(ips[0])
-				if net.ParseIP(clientIP) != nil {
-					return clientIP
-				}
-			}
-		}
-	}
-	ip := c.IP()
-	if ip != "" && net.ParseIP(ip) != nil {
-		return ip
 	}
 	return ""
 }
