@@ -6,18 +6,12 @@ import (
 	"sync"
 	"time"
 
+	"anti-ddos/config"
 	"anti-ddos/pkg/logger"
 	"anti-ddos/utils"
 
 	"github.com/gofiber/fiber/v3"
 	"go.uber.org/zap"
-)
-
-var (
-	BanThreshold   = utils.GetEnvAsInt("DETECTOR_BAN_THRESHOLD", 10)
-	BanDuration    = time.Duration(utils.GetEnvAsInt("DETECTOR_BAN_DURATION_SEC", 300)) * time.Second
-	ScoreDecayTime = time.Duration(utils.GetEnvAsInt("DETECTOR_SCORE_DECAY_SEC", 60)) * time.Second
-	CleanupTime    = 5 * time.Minute
 )
 
 type Suspicious struct {
@@ -29,11 +23,13 @@ type Suspicious struct {
 type Detector struct {
 	ips map[string]*Suspicious
 	mu  sync.RWMutex
+	cfg config.DetectorConfig
 }
 
-func NewDetector() *Detector {
+func NewDetector(cfg config.DetectorConfig) *Detector {
 	return &Detector{
 		ips: make(map[string]*Suspicious),
+		cfg: cfg,
 	}
 }
 
@@ -67,7 +63,7 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 		}
 
 		// WARN: Please understand this code block carefully, this can't be indispensable
-		if now.Sub(info.LastSeen) > ScoreDecayTime {
+		if now.Sub(info.LastSeen) > d.cfg.ScoreDecayTime {
 			info.Score = 0
 		}
 
@@ -85,8 +81,8 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 
 		info.LastSeen = now
 
-		if info.Score >= BanThreshold {
-			info.BannedUntil = now.Add(BanDuration)
+		if info.Score >= d.cfg.BanThreshold {
+			info.BannedUntil = now.Add(d.cfg.BanDuration)
 
 			logger.Log.Warn("IP Banned by Detector",
 				zap.String("ip", ip),
@@ -102,7 +98,7 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 }
 
 func (d *Detector) Cleanup(ctx context.Context) {
-	ticker := time.NewTicker(CleanupTime)
+	ticker := time.NewTicker(d.cfg.CleanupTime)
 	defer ticker.Stop()
 
 	for {
@@ -140,7 +136,7 @@ func (d *Detector) BanIP(ip string, duration time.Duration) {
 	}
 
 	info.BannedUntil = time.Now().Add(duration)
-	info.Score = BanThreshold
+	info.Score = d.cfg.BanThreshold
 
 	logger.Log.Info("IP Banned manually via internal call", zap.String("ip", ip))
 }

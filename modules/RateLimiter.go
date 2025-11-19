@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"anti-ddos/config"
 	"anti-ddos/pkg/logger"
 
 	"anti-ddos/utils"
@@ -22,32 +23,19 @@ type Client struct {
 }
 
 type RateLimiter struct {
-	clients       map[string]*Client
-	mu            sync.RWMutex
-	maxRequests   int
-	refillRate    float64
-	burst         int
-	blockDuration time.Duration
-
-	// Metrics
-	blockedRequests int
-
+	clients  map[string]*Client
+	mu       sync.RWMutex
 	detector *Detector
+	cfg      config.RateLimiterConfig
+
+	blockedRequests int
 }
 
-var (
-	cleanupInterval = utils.GetEnvAsInt("RATE_LIMIT_CLEANUP_INTERVAL", 60)
-	clientTTL       = utils.GetEnvAsInt("RATE_LIMIT_CLIENT_TTL", 180)
-)
-
-func NewRateLimiter(maxRequests int, refillRate float64, burst int, blockSec int, d *Detector) *RateLimiter {
+func NewRateLimiter(cfg config.RateLimiterConfig, d *Detector) *RateLimiter {
 	return &RateLimiter{
-		clients:       make(map[string]*Client),
-		maxRequests:   maxRequests,
-		refillRate:    refillRate,
-		burst:         burst,
-		blockDuration: time.Duration(blockSec) * time.Second,
-		detector:      d,
+		clients:  make(map[string]*Client),
+		cfg:      cfg,
+		detector: d,
 	}
 }
 
@@ -71,7 +59,7 @@ func (rl *RateLimiter) getLimiter(ip, endpoint string) *rate.Limiter {
 		client, exists = rl.clients[key]
 		if !exists {
 			client = &Client{
-				limiter:  rate.NewLimiter(rate.Limit(rl.refillRate), rl.burst),
+				limiter:  rate.NewLimiter(rate.Limit(rl.cfg.RefillRate), rl.cfg.Burst),
 				lastSeen: time.Now(),
 			}
 			rl.clients[key] = client
@@ -99,7 +87,7 @@ func (rl *RateLimiter) RateLimiterMiddleware() fiber.Handler {
 			rl.blockedRequests++
 			rl.mu.Unlock()
 
-			rl.detector.BanIP(ip, BanDuration)
+			rl.detector.BanIP(ip, rl.cfg.BanDuration)
 
 			logger.Log.Warn("Rate limit exceeded",
 				zap.String("ip", ip),
@@ -117,11 +105,11 @@ func (rl *RateLimiter) RateLimiterMiddleware() fiber.Handler {
 
 func (rl *RateLimiter) Cleanup(ctx context.Context) {
 	logger.Log.Info("Starting rate limiter cleanup routine",
-		zap.Int("cleanup_interval_seconds", cleanupInterval),
-		zap.Int("client_ttl_seconds", clientTTL),
+		zap.Duration("cleanup_interval_seconds", rl.cfg.CleanupInterval),
+		zap.Duration("client_ttl_seconds", rl.cfg.ClientTTL),
 	)
 
-	ticker := time.NewTicker(time.Duration(cleanupInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(rl.cfg.CleanupInterval) * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -134,7 +122,7 @@ func (rl *RateLimiter) Cleanup(ctx context.Context) {
 			removed := 0
 			now := time.Now()
 			for key, client := range rl.clients {
-				if now.Sub(client.lastSeen) > time.Duration(clientTTL)*time.Second {
+				if now.Sub(client.lastSeen) > time.Duration(rl.cfg.ClientTTL)*time.Second {
 					delete(rl.clients, key)
 					removed++
 				}

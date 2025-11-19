@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"anti-ddos/config"
 	"anti-ddos/modules"
 	"anti-ddos/pkg/logger"
 	"anti-ddos/utils"
@@ -24,19 +25,24 @@ func main() {
 		}
 	}()
 
+	cfg := config.LoadConfig()
+	logger.Log.Info("Application Configuration Loaded",
+		zap.String("port", cfg.Port),
+		zap.Any("detector_config", cfg.Detector),
+		zap.Any("rate_limiter_config", cfg.RateLimiter),
+	)
+
 	app := fiber.New()
 
-	d := modules.NewDetector()
-
-	rl := modules.NewRateLimiter(10, 5.0, 10, 60, d)
+	d := modules.NewDetector(cfg.Detector)
+	rl := modules.NewRateLimiter(cfg.RateLimiter, d)
 
 	ctx, cancel := context.WithCancel(context.Background())
-
 	go rl.Cleanup(ctx)
 	go d.Cleanup(ctx)
 
 	app.Get("/", func(c fiber.Ctx) error {
-		return c.SendString("Hello World")
+		return c.SendString("Hello world from Aegirus")
 	})
 
 	app.Get("/api/test",
@@ -44,7 +50,7 @@ func main() {
 		rl.RateLimiterMiddleware(),
 
 		func(c fiber.Ctx) error {
-			logger.Log.Info("Request passed all shields",
+			logger.Log.Info("Request passed",
 				zap.String("ip", c.IP()),
 				zap.String("path", c.Path()),
 			)
