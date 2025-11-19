@@ -40,7 +40,11 @@ func GetClientIP(c fiber.Ctx) string {
 	}
 
 	headers := []string{
-		"X-Forwarded-For", "X-Real-IP", "X-Client-IP", "CF-Connecting-IP", "True-Client-IP",
+		"CF-Connecting-IP",
+		"True-Client-IP",
+		"X-Real-IP",
+		"X-Forwarded-For",
+		"X-Client-IP",
 	}
 	for _, h := range headers {
 		if ip := c.Get(h); ip != "" {
