@@ -33,12 +33,25 @@ type RateLimiter struct {
 
 	// Metrics
 	blockedRequests int
+
+	detector *Detector
 }
 
 var (
 	cleanupInterval = utils.GetEnvAsInt("RATE_LIMIT_CLEANUP_INTERVAL", 60)
 	clientTTL       = utils.GetEnvAsInt("RATE_LIMIT_CLIENT_TTL", 180)
 )
+
+func NewRateLimiter(maxRequests int, refillRate float64, burst int, blockSec int, d *Detector) *RateLimiter {
+	return &RateLimiter{
+		clients:       make(map[string]*Client),
+		maxRequests:   maxRequests,
+		refillRate:    refillRate,
+		burst:         burst,
+		blockDuration: time.Duration(blockSec) * time.Second,
+		detector:      d,
+	}
+}
 
 // ------------------- IP extraction -------------------
 
@@ -95,16 +108,6 @@ func parseForwardedHeader(forwarded string) string {
 
 // ------------------- RateLimiter -------------------
 
-func NewRateLimiter(maxRequests int, refillRate float64, burst int, blockSec int) *RateLimiter {
-	return &RateLimiter{
-		clients:       make(map[string]*Client),
-		maxRequests:   maxRequests,
-		refillRate:    refillRate,
-		burst:         burst,
-		blockDuration: time.Duration(blockSec) * time.Second,
-	}
-}
-
 func (rl *RateLimiter) getKey(ip, endpoint string) string {
 	return fmt.Sprintf("%s|%s", ip, endpoint)
 }
@@ -150,6 +153,8 @@ func (rl *RateLimiter) RateLimiterMiddleware() fiber.Handler {
 			rl.mu.Lock()
 			rl.blockedRequests++
 			rl.mu.Unlock()
+
+			rl.detector.BanIP(ip, BanDuration)
 
 			logger.Log.Warn("Rate limit exceeded",
 				zap.String("ip", ip),

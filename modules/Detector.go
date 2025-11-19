@@ -1,22 +1,34 @@
-// Package modules - Detector
+// Package modules - Detector & IP Blocker
 package modules
 
 import (
+	"context"
 	"sync"
 	"time"
 
+	"anti-ddos/pkg/logger"
+	"anti-ddos/utils"
+
 	"github.com/gofiber/fiber/v3"
+	"go.uber.org/zap"
+)
+
+var (
+	BanThreshold   = utils.GetEnvAsInt("DETECTOR_BAN_THRESHOLD", 10)
+	BanDuration    = time.Duration(utils.GetEnvAsInt("DETECTOR_BAN_DURATION_SEC", 300)) * time.Second
+	ScoreDecayTime = time.Duration(utils.GetEnvAsInt("DETECTOR_SCORE_DECAY_SEC", 60)) * time.Second
+	CleanupTime    = 5 * time.Minute
 )
 
 type Suspicious struct {
-	score       int
-	lastSeen    time.Time
-	bannedUntil time.Time
+	Score       int
+	LastSeen    time.Time
+	BannedUntil time.Time
 }
 
 type Detector struct {
 	ips map[string]*Suspicious
-	mu  sync.Mutex
+	mu  sync.RWMutex
 }
 
 func NewDetector() *Detector {
@@ -25,42 +37,110 @@ func NewDetector() *Detector {
 	}
 }
 
-func (d *Detector) Middleware() fiber.Handler {
+func (d *Detector) DetectorMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
 		ip := getClientIP(c)
 
 		d.mu.Lock()
-		info, ok := d.ips[ip]
-		if !ok {
+
+		info, exists := d.ips[ip]
+		if !exists {
 			info = &Suspicious{}
 			d.ips[ip] = info
 		}
 
 		now := time.Now()
 
-		if now.Before(info.bannedUntil) {
+		if now.Before(info.BannedUntil) {
+			remaining := info.BannedUntil.Sub(now)
+			// WARN: if you don't unlock, next request will wait forever and server will be deadlock
+			// like "return"
 			d.mu.Unlock()
+
+			// NOTE: this is just for bot crawler and api testing tool
+			c.Set("Retry-After", remaining.String())
+
 			return c.Status(403).JSON(fiber.Map{
-				"error": "IP banned",
+				"error":       "IP is banned temporarily",
+				"retry_after": remaining.String(),
 			})
 		}
 
-		if now.Sub(info.lastSeen) < 50*time.Millisecond {
-			info.score += 3
+		// WARN: Please understand this code block carefully, this can't be indispensable
+		if now.Sub(info.LastSeen) > ScoreDecayTime {
+			info.Score = 0
 		}
 
+		// Rule A: Spam requests (< 50ms between 2 request)
+		if !info.LastSeen.IsZero() && now.Sub(info.LastSeen) < 50*time.Millisecond {
+			info.Score += 3
+		}
+
+		// Rule B: No User-Agent (amateur bot script)
 		if c.Get("User-Agent") == "" {
-			info.score += 2
+			info.Score += 2
 		}
 
-		if info.score > 10 {
-			info.bannedUntil = now.Add(5 * time.Minute)
-			info.score = 0
+		// Rule C: (optional) like check path contains "wp-admin" or ".env" ..., that is vulnerability scanning
+
+		info.LastSeen = now
+
+		if info.Score >= BanThreshold {
+			info.BannedUntil = now.Add(BanDuration)
+			info.Score = 0
+
+			logger.Log.Warn("IP Banned by Detector",
+				zap.String("ip", ip),
+				zap.Int("score", info.Score),
+			)
 		}
 
-		info.lastSeen = now
 		d.mu.Unlock()
 
 		return c.Next()
 	}
+}
+
+func (d *Detector) Cleanup(ctx context.Context) {
+	ticker := time.NewTicker(CleanupTime)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			d.mu.Lock()
+			now := time.Now()
+			count := 0
+			for ip, info := range d.ips {
+				if now.After(info.BannedUntil) && now.Sub(info.LastSeen) > 10*time.Minute {
+					delete(d.ips, ip)
+					count++
+				}
+			}
+			d.mu.Unlock()
+			if count > 0 {
+				logger.Log.Info("Detector cleanup finished", zap.Int("removed_ips", count))
+			}
+		}
+	}
+}
+
+// BanIP :
+// NOTE: this is optional, you can call this in /login to prevent brute force attack, or access to admin panel ->  BAN
+func (d *Detector) BanIP(ip string, duration time.Duration) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	info, exists := d.ips[ip]
+	if !exists {
+		info = &Suspicious{}
+		d.ips[ip] = info
+	}
+
+	info.BannedUntil = time.Now().Add(duration)
+	info.Score = BanThreshold
+
+	logger.Log.Info("IP Banned manually via internal call", zap.String("ip", ip))
 }

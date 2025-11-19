@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"anti-ddos/modules"
 	"anti-ddos/pkg/logger"
@@ -13,30 +16,50 @@ import (
 
 func main() {
 	logger.InitLogger()
+	// NOTE: make sure to write logs to file before exit
+	defer logger.Log.Sync()
+
 	app := fiber.New()
 
-	detector := modules.NewDetector()
-	rl := modules.NewRateLimiter(10, 5, 10, 60)
+	d := modules.NewDetector()
+
+	rl := modules.NewRateLimiter(10, 5.0, 10, 60, d)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+
 	go rl.Cleanup(ctx)
-	app.Get("", func(c fiber.Ctx) error {
+	go d.Cleanup(ctx)
+
+	app.Get("/", func(c fiber.Ctx) error {
 		return c.SendString("Hello World")
 	})
+
 	app.Get("/api/test",
+		d.DetectorMiddleware(),
 		rl.RateLimiterMiddleware(),
-		detector.Middleware(),
+
 		func(c fiber.Ctx) error {
-			logger.Log.Info("Request passed RateLimiter",
+			logger.Log.Info("Request passed all shields",
 				zap.String("ip", c.IP()),
 				zap.String("path", c.Path()),
 			)
 			return c.SendString("Request successful")
 		})
-	port := utils.GetEnv("PORT", "8080")
-	if err := app.Listen(":" + port); err != nil {
-		cancel()
-		panic(err)
-	}
+
+	// Graceful Shutdown
+	go func() {
+		port := utils.GetEnv("PORT", "8080")
+		if err := app.Listen(":" + port); err != nil {
+			logger.Log.Panic("Server failed to start", zap.Error(err))
+		}
+	}()
+
+	// Ctrl+C
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	<-c
+
+	logger.Log.Info("SHUTTING DOWN SERVER...")
+	cancel()
+	_ = app.Shutdown()
 }
