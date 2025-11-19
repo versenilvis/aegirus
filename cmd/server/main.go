@@ -28,7 +28,9 @@ func main() {
 	cfg := config.LoadConfig()
 	logger.Log.Info("Application Configuration Loaded", zap.Object("config", cfg))
 
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		ProxyHeader: fiber.HeaderXForwardedFor,
+	})
 
 	d := modules.NewDetector(cfg.Detector)
 	rl := modules.NewRateLimiter(cfg.RateLimiter, d)
@@ -47,7 +49,7 @@ func main() {
 
 		func(c fiber.Ctx) error {
 			logger.Log.Info("Request passed",
-				zap.String("ip", utils.GetClientIP(c)),
+				zap.String("ip", c.IP()),
 				zap.String("path", c.Path()),
 			)
 			return c.SendString("Request successful")
