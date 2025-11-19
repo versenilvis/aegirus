@@ -1,165 +1,137 @@
-## 1. **Overview**
+# Module: Rate Limiter
 
-This middleware is an **IP + endpoint-based rate limiter** using the **token bucket algorithm**.
+The **Rate Limiter** module is the "Traffic Controller" of the Anti-DDoS system. It implements a high-performance **Token Bucket** algorithm to control the flow of incoming requests. While the Detector focuses on *quality* (bad behavior), the Rate Limiter focuses on *quantity* (volume control).
 
-* Each IP has a separate limiter per endpoint.
-* Limit is configurable via `refillRate` (requests per second) and `burst` (max tokens).
-* Requests exceeding the limit are **blocked** and return a JSON 429 response.
-* A **cleanup routine** removes inactive clients to save memory.
+## Features
 
----
+  * **Token Bucket Algorithm:** Uses `golang.org/x/time/rate` for smooth, burst-tolerant limiting.
+  * **Per-Endpoint Granularity:** Limits are tracked based on a combination of `IP + Endpoint`. A user spamming `/api/login` won't necessarily block their access to `/api/home` (unless triggered by the Detector).
+  * **Double-Checked Locking:** Optimized for high concurrency. Uses `RWMutex` (Read-Write Lock) to minimize bottlenecking during high traffic.
+  * **Detector Integration:** Automatically triggers an **IP Ban** via the Detector module when a rate limit is exceeded, upgrading a temporary 429 error to a full 403 network ban.
+  * **Automatic Cleanup:** Background garbage collection removes stale user records to prevent memory leaks.
 
-## 2. **Structures**
+-----
 
-### `Client`
+## Configuration
 
-```go
-type Client struct {
-    limiter  *rate.Limiter // token bucket limiter
-    lastSeen time.Time     // last request time
-}
-```
+The module behavior is controlled via Environment Variables (`.env`) and constructor parameters.
 
-### `RateLimiter`
+<div align=center>
 
-```go
-type RateLimiter struct {
-    clients       map[string]*Client
-    mu            sync.RWMutex
-    maxRequests   int
-    refillRate    float64
-    burst         int
-    blockDuration time.Duration
+| Environment Variable | Default | Description |
+| :--- | :--- | :--- |
+| `RATE_LIMIT_CLEANUP_INTERVAL` | `60` (1 min) | How often the cleanup routine runs. |
+| `RATE_LIMIT_CLIENT_TTL` | `180` (3 min) | How long a client record stays in memory after their last request. |
 
-    blockedRequests int // metric
-}
-```
+</div>
 
-* `clients`: stores limiter per `"IP|endpoint"`
-* `mu`: protects the map
-* `refillRate` & `burst`: token bucket parameters
-* `blockedRequests`: tracks blocked requests
+**Constructor Parameters (`NewRateLimiter`):**
 
----
+  * **maxRequests:** The maximum "burst" size allowed.
+  * **refillRate:** How many requests are allowed per second (RPS).
+  * **blockSec:** Duration to ban the IP if the limit is exceeded.
 
-## 3. **Client IP Extraction**
+-----
 
-Function `getClientIP(c fiber.Ctx)` extracts the real client IP:
+## 🛠️ Internal Logic
 
-1. Checks `Forwarded` header according to RFC 7239
-2. Checks common proxy headers: `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`, etc.
-3. Fallback: `c.IP()`
+### 1\. The Key Strategy
 
-Helper `parseForwardedHeader` parses:
+The limiter identifies clients using a composite key:
+`Key = ClientIP + "|" + EndpointPath`
 
-```
-Forwarded: for=1.2.3.4;by=...
-```
+  * **Benefit:** Prevents a bottleneck on one API from affecting others.
+  * **Example:** Spamming `100 req/s` on `/api/download` will trigger the limit for that specific path.
 
-and returns `1.2.3.4`.
+### 2\. Optimization: Double-Checked Locking
 
----
+To handle thousands of concurrent requests without slowing down the server, the module uses a two-step locking mechanism in `getLimiter()`:
 
-## 4. **Limiter Retrieval**
+1.  **Read Lock (`RLock`):** Allows multiple requests to read the map simultaneously. Extremely fast.
+2.  **Write Lock (`Lock`):** Only used if the client does not exist yet. Before writing, it checks again to ensure another goroutine didn't write it first.
 
-```go
-func (rl *RateLimiter) getLimiter(ip, endpoint string) *rate.Limiter
-```
+### 3\. The "Escalation" Protocol
 
-* Key = `"IP|endpoint"`
-* If client does not exist → create a new token bucket
-* If client exists → update `lastSeen`
+This is the critical link between RateLimiter and Detector:
 
----
+1.  Client sends too many requests.
+2.  `limiter.Allow()` returns `false`.
+3.  **Action A:** Return `429 Too Many Requests` to the client.
+4.  **Action B:** Call `rl.detector.BanIP()`. This "escalates" the punishment from a simple "Please wait" to "You are now banned for X minutes".
 
-## 5. **Middleware Handler**
+-----
 
-```go
-func (rl *RateLimiter) RateLimiterMiddleware() fiber.Handler
-```
+## Integration Guide
 
-* Retrieves IP and endpoint
-* Checks token bucket using `limiter.Allow()`
-* If allowed → `c.Next()`
-* If blocked → return JSON 429:
-
-```json
-{
-  "error": "Too many requests",
-  "message": "Try again later"
-}
-```
-
----
-
-## 6. **Cleanup Routine**
-
-```go
-func (rl *RateLimiter) Cleanup(ctx context.Context)
-```
-
-* Runs every `cleanupInterval` seconds
-* Removes clients where `lastSeen > clientTTL`
-* Prevents memory leak in long-running applications
-
----
-
-## 7. **Metrics**
-
-```go
-func (rl *RateLimiter) Metrics() (activeClients int, blocked int)
-```
-
-* `activeClients`: number of active IP|endpoint limiters
-* `blocked`: total blocked requests
-
----
-
-## 8. **Usage Example**
+Initialize the RateLimiter **after** the Detector, as it depends on the Detector instance.
 
 ```go
 func main() {
-    app := fiber.New()
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
+    // 1. Init Detector first
+    detector := modules.NewDetector()
+    go detector.Cleanup(ctx)
 
-    // Create a rate limiter: 5 RPS, burst 10, block 60s
-    rl := NewRateLimiter(5, 5, 10, 60)
+    // 2. Init RateLimiter
+    // Config: 10 req/s, Burst 5, Ban for 60s if exceeded
+    rl := modules.NewRateLimiter(10, 5, 5, 60, detector)
 
-    // Apply middleware to the whole app
-    app.Use(rl.RateLimiterMiddleware())
-
-    // Example endpoint
-    app.Get("/api/v1/download", func(c *fiber.Ctx) error {
-        return c.SendString("Download OK")
-    })
-
-    // Start cleanup routine
+    // 3. Start RateLimiter Cleanup
     go rl.Cleanup(ctx)
 
-    app.Listen(":3000")
+    // 4. Register Middleware (AFTER Detector)
+    // Detector (Police) -> RateLimiter (Traffic Light) -> Handler
+    app.Use(detector.DetectorMiddleware())
+    app.Use(rl.RateLimiterMiddleware())
 }
 ```
 
----
+-----
 
-## 9. **Workflow**
+## Flowchart
 
-1. Client sends a request → middleware extracts IP
-2. Retrieve limiter for `"IP|endpoint"`
-3. Check token bucket:
+```graph TD
+    A[Request arrives at RateLimiter] --> B{Get Limiter Object};
+    B --> C(RLock: Check Map);
+    C -- Found --> D[Return Limiter];
+    C -- Not Found --> E(Lock: Create New Limiter);
+    E --> D;
 
-   * If tokens left → allow request
-   * If no tokens → block request, increment `blockedRequests`
-4. Cleanup routine deletes inactive clients
-5. Metrics provide monitoring data
+    D --> F{limiter.Allow?};
+    
+    F -- YES (Has Token) --> G[Next Middleware c.Next()];
+    
+    F -- NO (Empty Bucket) --> H[Increment Metrics];
+    H --> I[Trigger Detector.BanIP()];
+    I --> J[Log Warning];
+    J --> K[Return 429 Too Many Requests];
+```
 
----
+-----
 
-## 10. **Advantages**
+## 📖 API Reference
 
-* Limits requests to prevent **basic DDoS**
-* JSON response standard, no external packages needed
-* Cleanup routine avoids memory leaks
-* Metrics for monitoring request flow
+### `NewRateLimiter(...)`
 
+Creates a new RateLimiter instance.
+
+  * **Params:** `maxRequests` (Burst), `refillRate` (RPS), `burst` (Token capacity), `blockSec` (Ban duration), `d` (Detector instance).
+
+### `RateLimiterMiddleware() fiber.Handler`
+
+The middleware function to be used in Fiber `app.Use()`.
+
+  * It extracts the IP.
+  * Retrieves the specific token bucket for that IP+Path.
+  * Consumes a token.
+  * If no tokens left -\> Ban IP & Return 429.
+
+### `Cleanup(ctx context.Context)`
+
+Background worker. It iterates through the `clients` map and removes entries that haven't been active for `RATE_LIMIT_CLIENT_TTL` seconds. This ensures the server RAM doesn't fill up with one-time visitors.
+
+### `Metrics() (int, int)`
+
+Returns current statistics:
+
+1.  `activeClients`: Number of IPs currently being tracked in memory.
+2.  `blockedRequests`: Total number of requests rejected since startup.
