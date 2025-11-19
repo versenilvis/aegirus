@@ -9,6 +9,7 @@ import (
 
 	"anti-ddos/config"
 	"anti-ddos/pkg/logger"
+	"anti-ddos/utils"
 
 	"github.com/gofiber/fiber/v3"
 	"go.uber.org/zap"
@@ -77,7 +78,7 @@ func (rl *RateLimiter) getLimiter(ip, endpoint string) *rate.Limiter {
 // windows user: https://www.apachelounge.com/download/
 func (rl *RateLimiter) RateLimiterMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
-		ip := c.IP()
+		ip := utils.GetClientIP(c)
 		endpoint := c.Path()
 		limiter := rl.getLimiter(ip, endpoint)
 		if !limiter.Allow() {

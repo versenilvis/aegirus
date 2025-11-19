@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"anti-ddos/config"
@@ -32,27 +31,7 @@ func main() {
 	cfg := config.LoadConfig()
 	logger.Log.Info("Application Configuration Loaded", zap.Object("config", cfg))
 
-	trustedProxies := utils.GetEnv("TRUSTED_PROXIES", "")
-	var proxyConfig fiber.TrustProxyConfig
-	enableTrust := false
-
-	if trustedProxies != "" {
-		enableTrust = true
-		proxyConfig = fiber.TrustProxyConfig{
-			Proxies: strings.Split(trustedProxies, ","),
-		}
-	}
-
-	app := fiber.New(fiber.Config{
-		TrustProxy:       enableTrust,
-		TrustProxyConfig: proxyConfig,
-		ProxyHeader: func() string {
-			if enableTrust {
-				return fiber.HeaderXForwardedFor
-			}
-			return ""
-		}(),
-	})
+	app := fiber.New()
 
 	d := modules.NewDetector(cfg.Detector)
 	rl := modules.NewRateLimiter(cfg.RateLimiter, d)
@@ -70,8 +49,9 @@ func main() {
 		rl.RateLimiterMiddleware(),
 
 		func(c fiber.Ctx) error {
+			ip := utils.GetClientIP(c)
 			logger.Log.Info("Request passed",
-				zap.String("ip", c.IP()),
+				zap.String("ip", ip),
 				zap.String("path", c.Path()),
 			)
 			return c.SendString("Request successful")

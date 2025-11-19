@@ -8,6 +8,7 @@ import (
 
 	"anti-ddos/config"
 	"anti-ddos/pkg/logger"
+	"anti-ddos/utils"
 
 	"github.com/gofiber/fiber/v3"
 	"go.uber.org/zap"
@@ -34,7 +35,7 @@ func NewDetector(cfg config.DetectorConfig) *Detector {
 
 func (d *Detector) DetectorMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
-		ip := c.IP()
+		ip := utils.GetClientIP(c)
 
 		d.mu.Lock()
 
