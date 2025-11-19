@@ -4,8 +4,6 @@ package modules
 import (
 	"context"
 	"fmt"
-	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -53,59 +51,6 @@ func NewRateLimiter(maxRequests int, refillRate float64, burst int, blockSec int
 	}
 }
 
-// ------------------- IP extraction -------------------
-
-func getClientIP(c fiber.Ctx) string {
-	if forwarded := c.Get("Forwarded"); forwarded != "" {
-		if ip := parseForwardedHeader(forwarded); ip != "" {
-			return ip
-		}
-	}
-
-	headers := []string{
-		"X-Forwarded-For", "X-Real-IP", "X-Client-IP", "CF-Connecting-IP", "True-Client-IP",
-	}
-	for _, h := range headers {
-		if ip := c.Get(h); ip != "" {
-			ips := strings.Split(ip, ",")
-			if len(ips) > 0 {
-				clientIP := strings.TrimSpace(ips[0])
-				if net.ParseIP(clientIP) != nil {
-					return clientIP
-				}
-			}
-		}
-	}
-	ip := getClientIP(c)
-	if ip != "" && net.ParseIP(ip) != nil {
-		return ip
-	}
-	return ""
-}
-
-func parseForwardedHeader(forwarded string) string {
-	entries := strings.SplitSeq(forwarded, ",")
-	for entry := range entries {
-		entry = strings.TrimSpace(entry)
-		if !strings.HasPrefix(entry, "for=") {
-			continue
-		}
-
-		forPart, _ := strings.CutPrefix(entry, "for=")
-		forPart = strings.Trim(forPart, `"`)
-
-		if i := strings.IndexByte(forPart, ';'); i != -1 {
-			forPart = forPart[:i]
-		}
-
-		ip := strings.TrimSpace(forPart)
-		if net.ParseIP(ip) != nil {
-			return ip
-		}
-	}
-	return ""
-}
-
 // ------------------- RateLimiter -------------------
 
 func (rl *RateLimiter) getKey(ip, endpoint string) string {
@@ -146,7 +91,7 @@ func (rl *RateLimiter) getLimiter(ip, endpoint string) *rate.Limiter {
 // windows user: https://www.apachelounge.com/download/
 func (rl *RateLimiter) RateLimiterMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
-		ip := getClientIP(c)
+		ip := utils.GetClientIP(c)
 		endpoint := c.Path()
 		limiter := rl.getLimiter(ip, endpoint)
 		if !limiter.Allow() {

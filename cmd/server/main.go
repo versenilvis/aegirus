@@ -20,7 +20,6 @@ func main() {
 	defer func() {
 		err := logger.Log.Sync()
 		if err != nil {
-			// Nếu lỗi, in ra màn hình bằng fmt để biết (thường là lỗi vô hại)
 			logger.Log.Panic("Log sync error: %v\n", zap.Error(err))
 		}
 	}()
