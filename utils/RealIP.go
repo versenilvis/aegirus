@@ -35,6 +35,10 @@ func ParseForwardedHeader(forwarded string) string {
 	return ""
 }
 
+// ------------------- IP detector -------------------
+
+// NOTE: ORIGINAL CODE FROM: https://github.com/realclientip/realclientip-go/blob/main/realclientip.go
+
 // Strategy is satisfied by all of the specific strategies in this package. It can be used
 // instead of the concrete types if the strategy is to be determined at runtime,
 // depending on configuration, for example.
