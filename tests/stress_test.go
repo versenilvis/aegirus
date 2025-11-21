@@ -15,10 +15,9 @@ import (
 )
 
 var targets = map[string]string{
-	"Local":      "http://localhost:8080/api/test",
-	"RailwayNew": "https://aegirus-anti-ddos-production.up.railway.app/api/test",
-	"RailwayOld": "https://ahihi.up.railway.app/api/test",
-	"Render":     "https://aegirus-anti-ddos-low0.onrender.com/api/test",
+	"Local":   "http://localhost:8080/api/test",
+	"Railway": "https://ahihi.up.railway.app/api/test",
+	"Render":  "https://aegirus-anti-ddos-low0.onrender.com/api/test",
 }
 
 const TargetTimeout = 45 * time.Second
