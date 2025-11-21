@@ -80,12 +80,13 @@ func getConsoleEncoder() zapcore.Encoder {
 
 func getWriterSync() zapcore.WriteSyncer {
 	// Create log directory if it doesn't exist
-	if err := os.MkdirAll("../log", 0o755); err != nil {
-		panic(err)
+	path := "log/"
+	if envPath := os.Getenv("LOG_PATH"); envPath != "" {
+		path = envPath
 	}
 
 	lumberjackLogger := &lumberjack.Logger{
-		Filename:   "../log/info.log",
+		Filename:   path,
 		MaxSize:    1, // megabytes
 		MaxBackups: 5,
 		MaxAge:     5,    // days
