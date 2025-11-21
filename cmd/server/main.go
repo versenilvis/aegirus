@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,7 +18,10 @@ import (
 )
 
 func main() {
-	godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+		// WARN: Do not change this to zap logger
+		log.Println("WARN: No .env file found, using default system environment variables.")
+	}
 
 	logger.InitLogger()
 	// NOTE: make sure to write logs to file before exit
@@ -79,5 +83,7 @@ func main() {
 
 	logger.Log.Info("SHUTTING DOWN SERVER...")
 	cancel()
-	_ = app.Shutdown()
+	if err := app.Shutdown(); err != nil {
+		logger.Log.Error("Error during shutdown", zap.Error(err))
+	}
 }
