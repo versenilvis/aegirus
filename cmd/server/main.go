@@ -49,17 +49,21 @@ func main() {
 		rl.RateLimiterMiddleware(),
 
 		func(c fiber.Ctx) error {
-			ip := utils.GetClientIP(c)
+			ip := utils.GetRealIP(c)
+			trustedProxies := utils.GetEnv("TRUSTED_PROXIES", "")
 			logger.Log.Info("Request passed",
 				zap.String("ip", ip),
 				zap.String("path", c.Path()),
+				zap.String("ENV_TRUSTED", trustedProxies),
+				zap.String("HEADER_XFF", c.Get("X-Forwarded-For")), // just for debug in logs
 			)
 			return c.SendString("Request successful")
 		})
 
-	// Graceful Shutdown
+	// Graceful shutdown for deploy environment like Railway or Render,
+	// you will see air exixting message but you won't see it on deploy environment
 	go func() {
-		port := utils.GetEnv("PORT", "3000")
+		port := utils.GetEnv("PORT", "8080")
 		if err := app.Listen(":" + port); err != nil {
 			logger.Log.Panic("Server failed to start", zap.Error(err))
 		}
