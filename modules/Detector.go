@@ -142,6 +142,4 @@ func (d *Detector) BanIP(ip string, duration time.Duration) {
 
 	info.BannedUntil = time.Now().Add(duration)
 	info.Score = d.cfg.BanThreshold
-
-	logger.Log.Info("IP Banned manually via internal call", zap.String("ip", ip))
 }
