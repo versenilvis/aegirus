@@ -23,10 +23,14 @@
   
 </div>
 
+
 <div align="center">
-  <img height="1024" width="50%" alt="image" src="https://github.com/user-attachments/assets/5e8aea6e-b8d4-49bb-b97d-f7cd7d69c8b3"/>
+  <table>
+	  <td width="50%"><img height="1024" alt="image" src="https://github.com/user-attachments/assets/5e8aea6e-b8d4-49bb-b97d-f7cd7d69c8b3"/></td>
+    <td width="50%"><img height="449" alt="image" src="https://github.com/user-attachments/assets/848c4048-94df-4cb4-808c-cd622a6d384d" /></td>
+  </table>
   <br>
-  <i>You can use <a href="https://railway.com">Railway</a> to deploy and test</i>
+  <i>You can use <a href="https://railway.com">Railway</a> or <a href="https://render.com">Render</a> to deploy and test</i>
 </div>  
 
 > [!IMPORTANT]
