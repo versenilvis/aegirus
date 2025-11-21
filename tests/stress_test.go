@@ -1,12 +1,10 @@
-// Package tests contains the load test code for the anti-ddos project
 package tests
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"net/http"
-	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,152 +14,250 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
-func getEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
+var targets = map[string]string{
+	"Local":      "http://localhost:8080/api/test",
+	"RailwayNew": "https://aegirus-anti-ddos-production.up.railway.app/api/test",
+	"RailwayOld": "https://ahihi.up.railway.app/api/test",
+	"Render":     "https://aegirus-anti-ddos-low0.onrender.com/api/test",
 }
 
-func formatAndRenderReport(t *testing.T, totalRequests int, duration time.Duration, rps float64, success, limit, banned, failure int32) string {
-	var sb strings.Builder
+const TargetTimeout = 45 * time.Second
 
-	sb.WriteString("# Load Test Report\n\n")
-	sb.WriteString("## Configuration\n")
-	sb.WriteString(fmt.Sprintf("- **Target URL:** %s\n", getEnv("TARGET_URL", "http://localhost:8080/api/test")))
-	sb.WriteString(fmt.Sprintf("- **Total Requests:** %d\n", totalRequests))
-	sb.WriteString(fmt.Sprintf("- **Concurrency:** %s\n\n", getEnv("CONCURRENCY", "20")))
-
-	sb.WriteString("## Performance\n")
-	sb.WriteString("| Metric | Value |\n")
-	sb.WriteString("|:---|:---|\n")
-	sb.WriteString(fmt.Sprintf("| **Duration** | %s |\n", duration.Round(time.Millisecond)))
-	sb.WriteString(fmt.Sprintf("| **RPS** | %.2f req/s |\n\n", rps))
-
-	sb.WriteString("## Results Summary\n")
-	sb.WriteString("| Status | Count | Percentage |\n")
-	sb.WriteString("|:---|:---:|:---:|\n")
-
-	totalSent := float64(totalRequests)
-
-	sb.WriteString(fmt.Sprintf("| Success (200) | %d | %.2f%% |\n", success, float64(success)/totalSent*100))
-	sb.WriteString(fmt.Sprintf("| Rate Limit (429) | %d | %.2f%% |\n", limit, float64(limit)/totalSent*100))
-	sb.WriteString(fmt.Sprintf("| Banned (403) | %d | %.2f%% |\n", banned, float64(banned)/totalSent*100))
-	sb.WriteString(fmt.Sprintf("| Failed/Error | %d | %.2f%% |\n", failure, float64(failure)/totalSent*100))
-
-	out, err := glamour.Render(sb.String(), "dark")
-	if err != nil {
-		t.Logf("Glamour Render Error: %v", err)
-		return sb.String()
-	}
-	return out
+type TestConfig struct {
+	Name        string
+	Requests    int
+	Concurrency int
+	RandomIP    bool
+	NoUserAgent bool
 }
 
-func TestAntiDDoS_Stress(t *testing.T) {
-	targetURL := getEnv("TARGET_URL", "http://localhost:8080/api/test")
+type TestResult struct {
+	Target    string
+	Status    string
+	Duration  time.Duration
+	RPS       float64
+	Success   int64
+	RateLimit int64
+	Banned    int64
+	Failed    int64
+}
 
-	totalRequests, _ := strconv.Atoi(getEnv("TOTAL_REQUESTS", "200"))
-	concurrency, _ := strconv.Atoi(getEnv("CONCURRENCY", "20")) // Số luồng chạy song song
+type ScenarioResult struct {
+	Config  TestConfig
+	Results []TestResult
+}
 
-	randomizeIP := getEnv("RANDOM_IP", "false") == "true"
-	fixedIP := "45.14.71.11"
-
-	var configSB strings.Builder
-	configSB.WriteString("# 🚀 Starting Load Test\n\n")
-	configSB.WriteString("## Test Configuration\n")
-	configSB.WriteString("| Setting | Value |\n")
-	configSB.WriteString("|:---|:---|\n")
-	configSB.WriteString(fmt.Sprintf("| Target URL | **%s** |\n", targetURL))
-	configSB.WriteString(fmt.Sprintf("| Total Requests | %d |\n", totalRequests))
-	configSB.WriteString(fmt.Sprintf("| Concurrency (Workers) | %d |\n", concurrency))
-	configSB.WriteString(fmt.Sprintf("| Random IP Spoofing | **%v** |\n", randomizeIP))
-	configSB.WriteString(fmt.Sprintf("| Fixed Test IP | %s |\n", fixedIP))
-
-	configOutput, err := glamour.Render(configSB.String(), "dark")
-	if err != nil {
-		t.Logf("Configuration: Target: %s, Requests: %d, Concurrency: %d", targetURL, totalRequests, concurrency)
-	} else {
-		t.Logf("\n%s", configOutput)
+// =================================================================
+// TEST: RUN ALL AND PRINT REPORT
+// =================================================================
+func Test_Run_Full_Analysis(t *testing.T) {
+	stdCfg := TestConfig{
+		Name:        "STANDARD (Rate Limit Check)",
+		Requests:    500,
+		Concurrency: 20,
+		RandomIP:    false,
+		NoUserAgent: false,
 	}
 
-	var (
-		countSuccess int32
-		countRateLim int32
-		countBanned  int32
-		countError   int32
+	ddosCfg := TestConfig{
+		Name:        "DDoS SIMULATION (Detector Check)",
+		Requests:    1000,
+		Concurrency: 50,
+		RandomIP:    true,
+		NoUserAgent: true,
+	}
+
+	t.Log("\nSTARTING FULL SYSTEM ANALYSIS...")
+
+	t.Logf("Phase 1: Running Standard Tests...")
+	stdResults := runScenarioInternal(t, stdCfg)
+
+	t.Logf("Phase 2: Running DDoS Tests...")
+	ddosResults := runScenarioInternal(t, ddosCfg)
+
+	// 3. In báo cáo tổng hợp
+	printCombinedDashboard(t,
+		ScenarioResult{Config: stdCfg, Results: stdResults},
+		ScenarioResult{Config: ddosCfg, Results: ddosResults},
 	)
+}
 
+// =================================================================
+// TEST: DEBUG
+// =================================================================
+func Test_RunAll_Standard(t *testing.T) {
+	cfg := TestConfig{Name: "Standard", Requests: 500, Concurrency: 20, RandomIP: false, NoUserAgent: false}
+	results := runScenarioInternal(t, cfg)
+	printSectionReport(t, ScenarioResult{Config: cfg, Results: results})
+}
+
+func Test_RunAll_DDoS(t *testing.T) {
+	cfg := TestConfig{Name: "DDoS", Requests: 1000, Concurrency: 50, RandomIP: true, NoUserAgent: true}
+	results := runScenarioInternal(t, cfg)
+	printSectionReport(t, ScenarioResult{Config: cfg, Results: results})
+}
+
+// -----------------------------------------------------------------
+// CORE LOGIC
+// -----------------------------------------------------------------
+
+func runScenarioInternal(t *testing.T, cfg TestConfig) []TestResult {
+	var results []TestResult
+
+	for name, url := range targets {
+		res := executeStressTest(name, url, cfg)
+
+		statusIcon := "✅"
+		if res.Status == "Timed Out" {
+			statusIcon = "⚠️"
+		}
+		t.Logf("   %s [%s] Done (%v)", statusIcon, name, res.Duration)
+
+		results = append(results, res)
+	}
+	return results
+}
+
+func executeStressTest(name, url string, cfg TestConfig) TestResult {
+	var success, limit, banned, failed int64
+
+	ctx, cancel := context.WithTimeout(context.Background(), TargetTimeout)
+	defer cancel()
+
+	jobs := make(chan int, cfg.Requests)
 	var wg sync.WaitGroup
 	startTime := time.Now()
 
-	sem := make(chan struct{}, concurrency)
-
-	for i := range totalRequests {
+	for w := 0; w < cfg.Concurrency; w++ {
 		wg.Add(1)
-		sem <- struct{}{}
-
-		go func(id int) {
+		go func() {
 			defer wg.Done()
-			defer func() { <-sem }()
+			// Set timeout for Client prevent worker from being stuck forever
+			client := &http.Client{Timeout: 5 * time.Second}
 
-			status := sendRequest(t, id, targetURL, fixedIP, randomizeIP)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case _, ok := <-jobs:
+					if !ok {
+						return
+					}
 
-			switch status {
-			case 200:
-				atomic.AddInt32(&countSuccess, 1)
-			case 429:
-				atomic.AddInt32(&countRateLim, 1)
-			case 403:
-				atomic.AddInt32(&countBanned, 1)
-			default:
-				atomic.AddInt32(&countError, 1)
+					ipToSend := "45.14.71.11"
+					if cfg.RandomIP {
+						ipToSend = fmt.Sprintf("%d.%d.%d.%d", rand.Intn(255), rand.Intn(255), rand.Intn(255), rand.Intn(255))
+					}
+
+					req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
+					req.Header.Set("X-Forwarded-For", ipToSend)
+					if !cfg.NoUserAgent {
+						req.Header.Set("User-Agent", "GoTest/1.0")
+					} else {
+						req.Header.Set("User-Agent", "")
+					}
+
+					resp, err := client.Do(req)
+					if err != nil {
+						atomic.AddInt64(&failed, 1)
+						continue
+					}
+
+					switch resp.StatusCode {
+					case 200:
+						atomic.AddInt64(&success, 1)
+					case 429:
+						atomic.AddInt64(&limit, 1)
+					case 403:
+						atomic.AddInt64(&banned, 1)
+					default:
+						atomic.AddInt64(&failed, 1)
+					}
+
+					_ = resp.Body.Close()
+				}
 			}
-		}(i + 1)
+		}()
 	}
+
+	go func() {
+		for i := 0; i < cfg.Requests; i++ {
+			select {
+			case <-ctx.Done():
+				close(jobs)
+				return
+			case jobs <- i:
+			}
+		}
+		close(jobs)
+	}()
 
 	wg.Wait()
 	duration := time.Since(startTime)
+	status := "Completed"
+	if ctx.Err() == context.DeadlineExceeded {
+		status = "Timed Out"
+	}
 
+	totalProcessed := atomic.LoadInt64(&success) + atomic.LoadInt64(&limit) + atomic.LoadInt64(&banned) + atomic.LoadInt64(&failed)
 	rps := 0.0
 	if duration.Seconds() > 0 {
-		rps = float64(totalRequests) / duration.Seconds()
+		rps = float64(totalProcessed) / duration.Seconds()
 	}
 
-	report := formatAndRenderReport(t,
-		totalRequests,
-		duration,
-		rps,
-		atomic.LoadInt32(&countSuccess),
-		atomic.LoadInt32(&countRateLim),
-		atomic.LoadInt32(&countBanned),
-		atomic.LoadInt32(&countError),
-	)
-
-	t.Logf("\n%s", report)
+	return TestResult{
+		Target:    name,
+		Status:    status,
+		Duration:  duration,
+		RPS:       rps,
+		Success:   success,
+		RateLimit: limit,
+		Banned:    banned,
+		Failed:    failed,
+	}
 }
 
-func sendRequest(t *testing.T, id int, url string, fixedIP string, random bool) int {
-	req, err := http.NewRequest("GET", url, nil)
+func printCombinedDashboard(t *testing.T, scenarios ...ScenarioResult) {
+	var sb strings.Builder
+
+	sb.WriteString("# FULL SYSTEM REPORT\n\n")
+
+	for _, sc := range scenarios {
+		sb.WriteString(fmt.Sprintf("## %s\n", sc.Config.Name))
+		sb.WriteString(fmt.Sprintf("> **Config:** Req: `%d` | Threads: `%d` | RandomIP: `%v` | NoUA: `%v`\n\n",
+			sc.Config.Requests, sc.Config.Concurrency, sc.Config.RandomIP, sc.Config.NoUserAgent))
+
+		sb.WriteString("| Target | Time | RPS | 🟢 200 | 🟡 429 | 🔴 403 | ❌ Err |\n")
+		sb.WriteString("|:---|:---:|:---:|:---:|:---:|:---:|:---:|\n")
+
+		total := float64(sc.Config.Requests)
+		for _, r := range sc.Results {
+			statusIcon := ""
+			if r.Status == "Timed Out" {
+				statusIcon = "⚠️ "
+			}
+
+			sb.WriteString(fmt.Sprintf("| **%s%s** | %s | %.0f | %d (%.0f%%) | %d (%.0f%%) | **%d (%.0f%%)** | %d |\n",
+				statusIcon, r.Target,
+				r.Duration.Round(time.Millisecond),
+				r.RPS,
+				r.Success, float64(r.Success)/total*100,
+				r.RateLimit, float64(r.RateLimit)/total*100,
+				r.Banned, float64(r.Banned)/total*100,
+				r.Failed,
+			))
+		}
+		sb.WriteString("\n")
+	}
+
+	out, err := glamour.Render(sb.String(), "dark")
 	if err != nil {
-		t.Logf("[Worker %d] Init Error: %v", id, err)
-		return 0
+		t.Log(sb.String())
+	} else {
+		t.Log("\n" + out)
 	}
+}
 
-	ipToSend := fixedIP
-	if random {
-		ipToSend = fmt.Sprintf("%d.%d.%d.%d",
-			rand.Intn(255), rand.Intn(255), rand.Intn(255), rand.Intn(255))
-	}
-
-	req.Header.Set("X-Forwarded-For", ipToSend)
-	req.Header.Set("User-Agent", "GoTest-Client/1.0")
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return 0
-	}
-	defer resp.Body.Close()
-
-	return resp.StatusCode
+func printSectionReport(t *testing.T, sc ScenarioResult) {
+	printCombinedDashboard(t, sc)
 }
