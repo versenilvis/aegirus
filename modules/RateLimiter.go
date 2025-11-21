@@ -53,6 +53,12 @@ func (rl *RateLimiter) getLimiter(ip, endpoint string) *rate.Limiter {
 
 	rl.mu.RLock()
 	client, exists := rl.clients[key]
+	if exists {
+		// NOTE: write in struct while RLock basically is light data race but with timstamp is acceptable for performance
+		client.lastSeen = time.Now()
+		rl.mu.RUnlock()
+		return client.limiter
+	}
 	rl.mu.RUnlock()
 
 	if !exists {
@@ -61,6 +67,12 @@ func (rl *RateLimiter) getLimiter(ip, endpoint string) *rate.Limiter {
 
 		client, exists = rl.clients[key]
 		if !exists {
+			// > 100k IP ~ 20MB RAM
+			if len(rl.clients) > 100000 {
+				rl.clients = make(map[string]*Client)
+				logger.Log.Warn("Detector map overflow! Resetting all IPs.")
+			}
+
 			client = &Client{
 				limiter:  rate.NewLimiter(rate.Limit(rl.cfg.RefillRate), rl.cfg.Burst),
 				lastSeen: time.Now(),

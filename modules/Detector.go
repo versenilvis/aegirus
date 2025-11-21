@@ -63,11 +63,13 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 
 		info, exists = d.ips[ip]
 		if !exists {
-			info, exists = d.ips[ip]
-			if !exists {
-				info = &Suspicious{LastSeen: now}
-				d.ips[ip] = info
+			// > 100k IP ~ 20MB RAM
+			if len(d.ips) > 100000 {
+				d.ips = make(map[string]*Suspicious)
+				logger.Log.Warn("Detector map overflow! Resetting all IPs to prevent memory leak.")
 			}
+			info = &Suspicious{LastSeen: now}
+			d.ips[ip] = info
 		}
 
 		// WARN: Please understand this code block carefully, this can't be indispensable
