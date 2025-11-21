@@ -11,6 +11,7 @@
   [![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
   [![Docker](https://img.shields.io/badge/Docker-2CA5E0?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
   [![Railway](https://img.shields.io/badge/Railway-131415?style=for-the-badge&logo=railway&logoColor=white)](https://railway.com/)
+  [![Render](https://img.shields.io/badge/Render-131415?style=for-the-badge&logo=render&logoColor=white)](https://render.com/)
 
 </div>
 
