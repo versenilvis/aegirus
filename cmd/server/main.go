@@ -57,13 +57,11 @@ func main() {
 		func(c fiber.Ctx) error {
 			// WARN: REMEMBER TO REMOVE TRUSTED_PROXIES VARIABLE IN YOUR .env IF YOU ARE USING YOUR VPS/LOCAL MACHINE,
 			// BUT IF YOU ARE USING RAILWAY OR NGINX,... SET IT TO TRUE IF YOUR SERVICE IS RUNNING
-			trustedProxies := utils.GetEnv("TRUSTED_PROXIES", "")
 			ip := utils.GetRealIP(c)
 
 			logger.Log.Info("Request passed",
 				zap.String("ip", ip),
 				zap.String("path", c.Path()),
-				zap.String("ENV_TRUSTED", trustedProxies),
 				zap.String("HEADER_XFF", c.Get("X-Forwarded-For")), // just for debug in logs
 			)
 			return c.SendString("Request successful")

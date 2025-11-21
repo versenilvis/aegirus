@@ -22,7 +22,7 @@ WORKDIR /root/
 COPY --from=builder /app/main .
 
 # OPTIONAL: copy .env file instead of using cloud's env
-# WARN: PLEASE CAREFUL WITH IT
+# WARN: PLEASE BE CAREFUL WITH IT
 # COPY .env .
 
 # same port as your server

@@ -71,7 +71,7 @@ func isPrivateOrLocal(ip net.IP) bool {
 	return isIPContainedInRanges(ip, privateAndLocalRanges)
 }
 
-// mustParseCIDR: a helper để parse static CIDR
+// mustParseCIDR: a helper to parse static CIDR
 func mustParseCIDR(s string) net.IPNet {
 	_, ipNet, err := net.ParseCIDR(s)
 	if err != nil {

@@ -55,7 +55,7 @@ func (rl *RateLimiter) getLimiter(ip, endpoint string) *rate.Limiter {
 	rl.mu.RLock()
 	client, exists := rl.clients[key]
 	if exists {
-		// NOTE: write in struct while RLock basically is light data race but with timstamp is acceptable for performance
+		// NOTE: write in struct while RLock basically is light data race but with timestamp is acceptable for performance
 		atomic.StoreInt64(&client.lastSeen, time.Now().UnixNano())
 		rl.mu.RUnlock()
 		return client.limiter
