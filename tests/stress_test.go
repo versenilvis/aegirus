@@ -16,7 +16,7 @@ import (
 
 var targets = map[string]string{
 	"Local":   "http://localhost:8080/api/test",
-	"Railway": "https://ahihi.up.railway.app/api/test",
+	"Railway": "https://aegirus.up.railway.app/api/test",
 	"Render":  "https://aegirus-anti-ddos-low0.onrender.com/api/test",
 }
 

@@ -7,7 +7,7 @@
 </div>
 
 <div align="center">
-  
+
   [![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
   [![Docker](https://img.shields.io/badge/Docker-2CA5E0?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
   [![Railway](https://img.shields.io/badge/Railway-131415?style=for-the-badge&logo=railway&logoColor=white)](https://railway.com/)
@@ -16,12 +16,12 @@
 </div>
 
 <div align="center">
-  
+
   [![License: 0BSD](https://img.shields.io/badge/License-0BSD-blue?style=for-the-badge&logo=github&logoColor=white)](./LICENSE.md)
   [![Status](https://img.shields.io/badge/status-beta-yellow?style=for-the-badge&logo=github&logoColor=white)]()
   [![Documentation](https://img.shields.io/badge/docs-available-brightgreen?style=for-the-badge&logo=github&logoColor=white)](./docs/README.md)
   [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=for-the-badge&logo=github&logoColor=white)](./CONTRIBUTING.md)
-  
+
 </div>
 
 
@@ -32,10 +32,10 @@
   </table>
   <br>
   <i>You can use <a href="https://railway.com">Railway</a> or <a href="https://render.com">Render</a> to deploy and test</i>
-</div>  
+</div>
 
 > [!IMPORTANT]
-> This is for educational purposes only.  
+> This is for educational purposes only.
 > Please do not use in production-ready code.
 
 ### Route:
@@ -48,10 +48,10 @@
 <br>
 
 > [!TIP]
-> API is now live. You can test it:  
-> [Render](https://aegirus-anti-ddos-low0.onrender.com/api/test)  
-> [Railway](https://ahihi.up.railway.app/api/test)  
-> Use [checkhost.net](https://check-host.net/check-ping?host=https://ahihi.up.railway.app/api/test) to ping the server
+> API is now live. You can test it:
+> [Render](https://aegirus-anti-ddos-low0.onrender.com/api/test)
+> [Railway](https://aegirus.up.railway.app/api/test)
+> Use [checkhost.net](https://check-host.net/check-ping?host=https://aegirus.up.railway.app/api/test) to ping the server
 
 
 ### License
