@@ -50,4 +50,4 @@
 > API is now live. You can test it:  
 > [Render](https://aegirus-anti-ddos-low0.onrender.com/api/test)  
 > [Railway](https://ahihi.up.railway.app/api/test)  
-> Use [checkhost.net](https://check-host.net/check-ping?host=https://anti-ddos-production.up.railway.app/api/test) to ping the server
+> Use [checkhost.net](https://check-host.net/check-ping?host=https://ahihi.up.railway.app/api/test) to ping the server
