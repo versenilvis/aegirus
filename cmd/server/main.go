@@ -45,8 +45,8 @@ func main() {
 	})
 
 	app.Get("/api/test",
-		d.DetectorMiddleware(),
 		rl.RateLimiterMiddleware(),
+		d.DetectorMiddleware(),
 
 		func(c fiber.Ctx) error {
 			// WARN: REMEMBER TO REMOVE TRUSTED_PROXIES VARIABLE IN YOUR .env IF YOU ARE USING YOUR VPS/LOCAL MACHINE,
