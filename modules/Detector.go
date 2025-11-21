@@ -64,7 +64,7 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 		if !exists {
 			info, exists = d.ips[ip]
 			if !exists {
-				info = &Suspicious{}
+				info = &Suspicious{LastSeen: now}
 				d.ips[ip] = info
 			}
 		}
