@@ -127,7 +127,7 @@ func (rl *RateLimiter) Cleanup(ctx context.Context) {
 			removed := 0
 			now := time.Now()
 			for key, client := range rl.clients {
-				if now.Sub(client.lastSeen) > time.Duration(rl.cfg.ClientTTL)*time.Second {
+				if now.Sub(client.lastSeen) > rl.cfg.ClientTTL {
 					delete(rl.clients, key)
 					removed++
 				}
