@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"anti-ddos/config"
@@ -22,7 +23,7 @@ type IPBanner interface {
 
 type Client struct {
 	limiter  *rate.Limiter
-	lastSeen time.Time
+	lastSeen int64
 }
 
 type RateLimiter struct {
@@ -55,32 +56,30 @@ func (rl *RateLimiter) getLimiter(ip, endpoint string) *rate.Limiter {
 	client, exists := rl.clients[key]
 	if exists {
 		// NOTE: write in struct while RLock basically is light data race but with timstamp is acceptable for performance
-		client.lastSeen = time.Now()
+		atomic.StoreInt64(&client.lastSeen, time.Now().UnixNano())
 		rl.mu.RUnlock()
 		return client.limiter
 	}
 	rl.mu.RUnlock()
 
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	client, exists = rl.clients[key]
 	if !exists {
-		rl.mu.Lock()
-		defer rl.mu.Unlock()
-
-		client, exists = rl.clients[key]
-		if !exists {
-			// > 100k IP ~ 20MB RAM
-			if len(rl.clients) > 100000 {
-				rl.clients = make(map[string]*Client)
-				logger.Log.Warn("Detector map overflow! Resetting all IPs.")
-			}
-
-			client = &Client{
-				limiter:  rate.NewLimiter(rate.Limit(rl.cfg.RefillRate), rl.cfg.Burst),
-				lastSeen: time.Now(),
-			}
-			rl.clients[key] = client
+		// > 100k IP ~ 20MB RAM
+		if len(rl.clients) > 100000 {
+			rl.clients = make(map[string]*Client)
+			logger.Log.Warn("RateLimiter map overflow! Resetting all clients to prevent memory leak.")
 		}
+
+		client = &Client{
+			limiter:  rate.NewLimiter(rate.Limit(rl.cfg.RefillRate), rl.cfg.Burst),
+			lastSeen: time.Now().UnixNano(),
+		}
+		rl.clients[key] = client
 	} else {
-		client.lastSeen = time.Now()
+		atomic.StoreInt64(&client.lastSeen, time.Now().UnixNano())
 	}
 
 	return client.limiter
@@ -137,7 +136,8 @@ func (rl *RateLimiter) Cleanup(ctx context.Context) {
 			removed := 0
 			now := time.Now()
 			for key, client := range rl.clients {
-				if now.Sub(client.lastSeen) > rl.cfg.ClientTTL {
+				lastSeenTime := time.Unix(0, atomic.LoadInt64(&client.lastSeen))
+				if now.Sub(lastSeenTime) > rl.cfg.ClientTTL {
 					delete(rl.clients, key)
 					removed++
 				}
