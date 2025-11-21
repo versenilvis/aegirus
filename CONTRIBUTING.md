@@ -2,6 +2,8 @@
 
 Thank you for your interest in Aegirus. We welcome community contributions and appreciate your time and effort in helping improve the project. Before getting started, please take a moment to review these guidelines.
 
+Need to contact? Reach out to my Telegram [@justtheverse](t.me/JustTheVerse).
+
 ## 1. How to Contribute
 
 We welcome contributions in various forms, including:
@@ -16,7 +18,7 @@ To contribute, follow these steps:
 - **Make your changes**, ensuring they align with our coding standards (§4 below).
 - **Run tests** to ensure your changes do not break existing functionality.
 - **Submit a pull request (PR)** with a clear description of the changes.
-- A maintainer will review your PR, suggest any necessary changes, and merge it once approved.
+- Another maintainer or I will review your PR, suggest any necessary changes, and merge it once approved.
 
 ### Commit Messages
 
@@ -31,10 +33,10 @@ Use clear and descriptive commit messages. Follow the conventional commit format
 By submitting a contribution, you represent and warrant that:
 
 - It is your original work, or you have sufficient rights to submit it.
-- You grant the Aegirus maintainers and users the right to use, modify, and distribute it under the MIT license (see LICENSE file); and
+- You grant the Aegirus maintainers and users the right to use, modify, and distribute it under the 0BSD license (see LICENSE file)
 - To the extent your contribution is covered by patents, you grant a perpetual, worldwide, non-exclusive, royalty-free, irrevocable license to the Aegirus maintainers and users to make, use, sell, offer for sale, import, and otherwise transfer your contribution as part of the project.
 
-We do not require a Contributor License Agreement (CLA). However, by contributing, you agree to license your submission under terms compatible with the MIT License and to grant the patent rights described above. If your contribution includes third-party code, you are responsible for ensuring it is MIT-compatible and properly attributed.
+We do not require a Contributor License Agreement (CLA). However, by contributing, you agree to license your submission under terms compatible with the 0BSD License and to grant the patent rights described above. If your contribution includes third-party code, you are responsible for ensuring it is 0BSD-compatible and properly attributed.
 
 Where permitted by law, you waive any moral rights in your contribution (e.g., the right to object to modifications). If such rights cannot be waived, you agree not to assert them in a way that interferes with the project’s use of your contribution.
 
