@@ -36,22 +36,18 @@ func NewDetector(cfg config.DetectorConfig) *Detector {
 func (d *Detector) DetectorMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
 		ip := utils.GetRealIP(c)
-
-		d.mu.Lock()
-
-		info, exists := d.ips[ip]
-		if !exists {
-			info = &Suspicious{}
-			d.ips[ip] = info
-		}
-
 		now := time.Now()
 
-		if now.Before(info.BannedUntil) {
+		// first check if IP is banned
+		d.mu.RLock()
+
+		info, exists := d.ips[ip]
+
+		if exists && now.Before(info.BannedUntil) {
 			remaining := info.BannedUntil.Sub(now)
 			// WARN: if you don't unlock, next request will wait forever and server will be deadlock
 			// like "return"
-			d.mu.Unlock()
+			d.mu.RUnlock()
 
 			// NOTE: this is just for bot crawler and api testing tool
 			c.Set("Retry-After", remaining.String())
@@ -61,6 +57,10 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 				"retry_after": remaining.String(),
 			})
 		}
+		d.mu.RUnlock()
+
+		// if not banned
+		d.mu.Lock()
 
 		// WARN: Please understand this code block carefully, this can't be indispensable
 		if now.Sub(info.LastSeen) > d.cfg.ScoreDecayTime {

@@ -16,25 +16,29 @@ import (
 	"golang.org/x/time/rate"
 )
 
+type IPBanner interface {
+	BanIP(ip string, duration time.Duration)
+}
+
 type Client struct {
 	limiter  *rate.Limiter
 	lastSeen time.Time
 }
 
 type RateLimiter struct {
-	clients  map[string]*Client
-	mu       sync.RWMutex
-	detector *Detector
-	cfg      config.RateLimiterConfig
+	clients map[string]*Client
+	mu      sync.RWMutex
+	banip   IPBanner
+	cfg     config.RateLimiterConfig
 
 	blockedRequests int
 }
 
-func NewRateLimiter(cfg config.RateLimiterConfig, d *Detector) *RateLimiter {
+func NewRateLimiter(cfg config.RateLimiterConfig, b IPBanner) *RateLimiter {
 	return &RateLimiter{
-		clients:  make(map[string]*Client),
-		cfg:      cfg,
-		detector: d,
+		clients: make(map[string]*Client),
+		cfg:     cfg,
+		banip:   b,
 	}
 }
 
@@ -86,8 +90,9 @@ func (rl *RateLimiter) RateLimiterMiddleware() fiber.Handler {
 			rl.blockedRequests++
 			rl.mu.Unlock()
 
-			rl.detector.BanIP(ip, rl.cfg.BanDuration)
-
+			if rl.banip != nil {
+				rl.banip.BanIP(ip, rl.cfg.BanDuration)
+			}
 			logger.Log.Warn("Rate limit exceeded",
 				zap.String("ip", ip),
 				zap.String("endpoint", endpoint),
