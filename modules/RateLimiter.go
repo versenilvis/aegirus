@@ -98,7 +98,6 @@ func (rl *RateLimiter) RateLimiterMiddleware() fiber.Handler {
 				zap.String("endpoint", endpoint),
 				zap.Time("time", time.Now()),
 			)
-			_ = logger.Log.Sync()
 
 			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
 				"error":   "Too many requests",

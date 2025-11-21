@@ -91,7 +91,6 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 				zap.Int("score", info.Score),
 			)
 			info.Score = 0
-			_ = logger.Log.Sync()
 		}
 
 		d.mu.Unlock()
