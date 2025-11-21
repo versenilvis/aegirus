@@ -4,7 +4,10 @@ package logger
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
+
+	"anti-ddos/utils"
 
 	// z "go.uber.org/zap"
 	"go.uber.org/zap"
@@ -80,12 +83,13 @@ func getConsoleEncoder() zapcore.Encoder {
 
 func getWriterSync() zapcore.WriteSyncer {
 	// Create log directory if it doesn't exist
-	if err := os.MkdirAll("../log", 0o755); err != nil {
-		panic(err)
+	path := utils.GetEnv("LOG_PATH", "log/")
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		fmt.Printf("WARN: Could not create log directory: %v\n", err)
 	}
-
+	logFileName := filepath.Join(path, "app.log")
 	lumberjackLogger := &lumberjack.Logger{
-		Filename:   "../log/info.log",
+		Filename:   logFileName,
 		MaxSize:    1, // megabytes
 		MaxBackups: 5,
 		MaxAge:     5,    // days

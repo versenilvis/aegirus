@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,7 +18,12 @@ import (
 )
 
 func main() {
-	godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+		// WARN: Do not change this to zap logger
+		log.Println("INFO: No .env file found, using your deploy environment variables.")
+	} else {
+		log.Println("INFO: Using .env file")
+	}
 
 	logger.InitLogger()
 	// NOTE: make sure to write logs to file before exit
@@ -45,21 +51,26 @@ func main() {
 	})
 
 	app.Get("/api/test",
-		d.DetectorMiddleware(),
 		rl.RateLimiterMiddleware(),
+		d.DetectorMiddleware(),
 
 		func(c fiber.Ctx) error {
-			ip := utils.GetClientIP(c)
+			// WARN: REMEMBER TO REMOVE TRUSTED_PROXIES VARIABLE IN YOUR .env IF YOU ARE USING YOUR VPS/LOCAL MACHINE,
+			// BUT IF YOU ARE USING RAILWAY OR NGINX,... SET IT TO TRUE IF YOUR SERVICE IS RUNNING
+			ip := utils.GetRealIP(c)
+
 			logger.Log.Info("Request passed",
 				zap.String("ip", ip),
 				zap.String("path", c.Path()),
+				zap.String("HEADER_XFF", c.Get("X-Forwarded-For")), // just for debug in logs
 			)
 			return c.SendString("Request successful")
 		})
 
-	// Graceful Shutdown
+	// Graceful shutdown for deploy environment like Railway or Render,
+	// you will see air exixting message but you won't see it on deploy environment
 	go func() {
-		port := utils.GetEnv("PORT", "3000")
+		port := utils.GetEnv("PORT", "8080")
 		if err := app.Listen(":" + port); err != nil {
 			logger.Log.Panic("Server failed to start", zap.Error(err))
 		}
@@ -72,5 +83,7 @@ func main() {
 
 	logger.Log.Info("SHUTTING DOWN SERVER...")
 	cancel()
-	_ = app.Shutdown()
+	if err := app.Shutdown(); err != nil {
+		logger.Log.Error("Error during shutdown", zap.Error(err))
+	}
 }

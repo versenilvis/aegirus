@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"anti-ddos/config"
@@ -16,25 +17,29 @@ import (
 	"golang.org/x/time/rate"
 )
 
+type IPBanner interface {
+	BanIP(ip string, duration time.Duration)
+}
+
 type Client struct {
 	limiter  *rate.Limiter
-	lastSeen time.Time
+	lastSeen int64
 }
 
 type RateLimiter struct {
-	clients  map[string]*Client
-	mu       sync.RWMutex
-	detector *Detector
-	cfg      config.RateLimiterConfig
+	clients map[string]*Client
+	mu      sync.RWMutex
+	banip   IPBanner
+	cfg     config.RateLimiterConfig
 
 	blockedRequests int
 }
 
-func NewRateLimiter(cfg config.RateLimiterConfig, d *Detector) *RateLimiter {
+func NewRateLimiter(cfg config.RateLimiterConfig, b IPBanner) *RateLimiter {
 	return &RateLimiter{
-		clients:  make(map[string]*Client),
-		cfg:      cfg,
-		detector: d,
+		clients: make(map[string]*Client),
+		cfg:     cfg,
+		banip:   b,
 	}
 }
 
@@ -49,24 +54,32 @@ func (rl *RateLimiter) getLimiter(ip, endpoint string) *rate.Limiter {
 
 	rl.mu.RLock()
 	client, exists := rl.clients[key]
+	if exists {
+		// NOTE: write in struct while RLock basically is light data race but with timestamp is acceptable for performance
+		atomic.StoreInt64(&client.lastSeen, time.Now().UnixNano())
+		rl.mu.RUnlock()
+		return client.limiter
+	}
 	rl.mu.RUnlock()
 
-	if !exists {
-		rl.mu.Lock()
-		defer rl.mu.Unlock()
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
 
-		client, exists = rl.clients[key]
-		if !exists {
-			client = &Client{
-				limiter:  rate.NewLimiter(rate.Limit(rl.cfg.RefillRate), rl.cfg.Burst),
-				lastSeen: time.Now(),
-			}
-			rl.clients[key] = client
+	client, exists = rl.clients[key]
+	if !exists {
+		// > 100k IP ~ 20MB RAM
+		if len(rl.clients) > 100000 {
+			rl.clients = make(map[string]*Client)
+			logger.Log.Warn("RateLimiter map overflow! Resetting all clients to prevent memory leak.")
 		}
+
+		client = &Client{
+			limiter:  rate.NewLimiter(rate.Limit(rl.cfg.RefillRate), rl.cfg.Burst),
+			lastSeen: time.Now().UnixNano(),
+		}
+		rl.clients[key] = client
 	} else {
-		rl.mu.Lock()
-		client.lastSeen = time.Now()
-		rl.mu.Unlock()
+		atomic.StoreInt64(&client.lastSeen, time.Now().UnixNano())
 	}
 
 	return client.limiter
@@ -78,7 +91,7 @@ func (rl *RateLimiter) getLimiter(ip, endpoint string) *rate.Limiter {
 // windows user: https://www.apachelounge.com/download/
 func (rl *RateLimiter) RateLimiterMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
-		ip := utils.GetClientIP(c)
+		ip := utils.GetRealIP(c)
 		endpoint := c.Path()
 		limiter := rl.getLimiter(ip, endpoint)
 		if !limiter.Allow() {
@@ -86,14 +99,14 @@ func (rl *RateLimiter) RateLimiterMiddleware() fiber.Handler {
 			rl.blockedRequests++
 			rl.mu.Unlock()
 
-			rl.detector.BanIP(ip, rl.cfg.BanDuration)
-
+			if rl.banip != nil {
+				rl.banip.BanIP(ip, rl.cfg.BanDuration)
+			}
 			logger.Log.Warn("Rate limit exceeded",
 				zap.String("ip", ip),
 				zap.String("endpoint", endpoint),
 				zap.Time("time", time.Now()),
 			)
-			_ = logger.Log.Sync()
 
 			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
 				"error":   "Too many requests",
@@ -110,7 +123,7 @@ func (rl *RateLimiter) Cleanup(ctx context.Context) {
 		zap.Duration("client_ttl_seconds", rl.cfg.ClientTTL),
 	)
 
-	ticker := time.NewTicker(time.Duration(rl.cfg.CleanupInterval) * time.Second)
+	ticker := time.NewTicker(rl.cfg.CleanupInterval)
 	defer ticker.Stop()
 
 	for {
@@ -123,7 +136,8 @@ func (rl *RateLimiter) Cleanup(ctx context.Context) {
 			removed := 0
 			now := time.Now()
 			for key, client := range rl.clients {
-				if now.Sub(client.lastSeen) > time.Duration(rl.cfg.ClientTTL)*time.Second {
+				lastSeenTime := time.Unix(0, atomic.LoadInt64(&client.lastSeen))
+				if now.Sub(lastSeenTime) > rl.cfg.ClientTTL {
 					delete(rl.clients, key)
 					removed++
 				}

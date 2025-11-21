@@ -35,31 +35,41 @@ func NewDetector(cfg config.DetectorConfig) *Detector {
 
 func (d *Detector) DetectorMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
-		ip := utils.GetClientIP(c)
-
-		d.mu.Lock()
-
-		info, exists := d.ips[ip]
-		if !exists {
-			info = &Suspicious{}
-			d.ips[ip] = info
-		}
-
+		ip := utils.GetRealIP(c)
 		now := time.Now()
 
-		if now.Before(info.BannedUntil) {
+		// first check if IP is banned
+		d.mu.RLock()
+
+		info, exists := d.ips[ip]
+
+		if exists && now.Before(info.BannedUntil) {
 			remaining := info.BannedUntil.Sub(now)
 			// WARN: if you don't unlock, next request will wait forever and server will be deadlock
 			// like "return"
-			d.mu.Unlock()
+			d.mu.RUnlock()
 
 			// NOTE: this is just for bot crawler and api testing tool
 			c.Set("Retry-After", remaining.String())
-
 			return c.Status(403).JSON(fiber.Map{
 				"error":       "IP is banned temporarily",
 				"retry_after": remaining.String(),
 			})
+		}
+		d.mu.RUnlock()
+
+		// if not banned
+		d.mu.Lock()
+
+		info, exists = d.ips[ip]
+		if !exists {
+			// > 100k IP ~ 20MB RAM
+			if len(d.ips) > 100000 {
+				d.ips = make(map[string]*Suspicious)
+				logger.Log.Warn("Detector map overflow! Resetting all IPs to prevent memory leak.")
+			}
+			info = &Suspicious{LastSeen: now}
+			d.ips[ip] = info
 		}
 
 		// WARN: Please understand this code block carefully, this can't be indispensable
@@ -67,17 +77,12 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 			info.Score = 0
 		}
 
-		// Rule A: Spam requests (< 50ms between 2 request)
-		if !info.LastSeen.IsZero() && now.Sub(info.LastSeen) < 50*time.Millisecond {
-			info.Score += 3
-		}
-
-		// Rule B: No User-Agent (amateur bot script)
+		// Rule A: No User-Agent (amateur bot script)
 		if c.Get("User-Agent") == "" {
-			info.Score += 2
+			info.Score += d.cfg.NoUserAgent
 		}
 
-		// Rule C: (optional) like check path contains "wp-admin" or ".env" ..., that is vulnerability scanning
+		// Rule B: (optional) like check path contains "wp-admin" or ".env" ..., that is vulnerability scanning
 
 		info.LastSeen = now
 
@@ -89,7 +94,6 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 				zap.Int("score", info.Score),
 			)
 			info.Score = 0
-			_ = logger.Log.Sync()
 		}
 
 		d.mu.Unlock()
@@ -111,7 +115,7 @@ func (d *Detector) Cleanup(ctx context.Context) {
 			now := time.Now()
 			count := 0
 			for ip, info := range d.ips {
-				if now.After(info.BannedUntil) && now.Sub(info.LastSeen) > 10*time.Minute {
+				if now.After(info.BannedUntil) && now.Sub(info.LastSeen) > d.cfg.CleanUpOldIPs {
 					delete(d.ips, ip)
 					count++
 				}
@@ -130,14 +134,22 @@ func (d *Detector) BanIP(ip string, duration time.Duration) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	now := time.Now()
+
 	info, exists := d.ips[ip]
 	if !exists {
 		info = &Suspicious{}
 		d.ips[ip] = info
 	}
 
-	info.BannedUntil = time.Now().Add(duration)
+	wasBanned := now.Before(info.BannedUntil)
+	info.BannedUntil = now.Add(duration)
 	info.Score = d.cfg.BanThreshold
-
-	logger.Log.Info("IP Banned manually via internal call", zap.String("ip", ip))
+	if !wasBanned {
+		logger.Log.Debug("IP Ban action recorded (First Ban or Re-Ban)",
+			zap.String("ip", ip),
+			zap.Duration("duration", duration),
+			zap.Time("banned_until", info.BannedUntil),
+		)
+	}
 }
