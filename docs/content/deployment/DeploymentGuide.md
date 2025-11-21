@@ -14,6 +14,7 @@
 
 <div align="center">
   <img width="950" height="750" alt="image" src="https://github.com/user-attachments/assets/a4c95bed-c06d-479e-b8cb-5a4599b07c44" />
+  <br>
   <i>Mine above is Aegirus</i>
 </div>
 
