@@ -134,6 +134,8 @@ func (d *Detector) BanIP(ip string, duration time.Duration) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	now := time.Now()
+
 	info, exists := d.ips[ip]
 	if !exists {
 		info = &Suspicious{}
@@ -142,4 +144,15 @@ func (d *Detector) BanIP(ip string, duration time.Duration) {
 
 	info.BannedUntil = time.Now().Add(duration)
 	info.Score = d.cfg.BanThreshold
+
+	wasBanned := now.Before(info.BannedUntil)
+	info.BannedUntil = now.Add(duration)
+	info.Score = d.cfg.BanThreshold
+	if !wasBanned {
+		logger.Log.Debug("IP Ban action recorded (First Ban or Re-Ban)",
+			zap.String("ip", ip),
+			zap.Duration("duration", duration),
+			zap.Time("banned_until", info.BannedUntil),
+		)
+	}
 }
