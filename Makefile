@@ -1,7 +1,5 @@
 TIMEOUT=30m
 
-
-
 test-full:
 	go test -v -count=1 -timeout $(TIMEOUT) -run '^Test_Run_Full_Analysis$$' ./tests/...
 
