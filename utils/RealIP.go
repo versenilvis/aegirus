@@ -136,7 +136,7 @@ func GetRealIP(c fiber.Ctx) string {
 	if xff != "" {
 		ips := strings.Split(xff, ",")
 
-		// Right to left strategy, instead of taking the last ip (last), we take the first public ip
+		// right to left strategy, instead of taking the last ip (last), we take the first public ip
 		for i := len(ips) - 1; i >= 0; i-- {
 			ipStr := strings.TrimSpace(ips[i])
 			ipAddr := goodIPAddr(ipStr)

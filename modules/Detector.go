@@ -51,7 +51,6 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 
 			// NOTE: this is just for bot crawler and api testing tool
 			c.Set("Retry-After", remaining.String())
-
 			return c.Status(403).JSON(fiber.Map{
 				"error":       "IP is banned temporarily",
 				"retry_after": remaining.String(),
@@ -61,6 +60,14 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 
 		// if not banned
 		d.mu.Lock()
+
+		if !exists {
+			info, exists = d.ips[ip]
+			if !exists {
+				info = &Suspicious{}
+				d.ips[ip] = info
+			}
+		}
 
 		// WARN: Please understand this code block carefully, this can't be indispensable
 		if now.Sub(info.LastSeen) > d.cfg.ScoreDecayTime {
