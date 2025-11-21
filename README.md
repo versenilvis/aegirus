@@ -52,3 +52,8 @@
 > [Render](https://aegirus-anti-ddos-low0.onrender.com/api/test)  
 > [Railway](https://ahihi.up.railway.app/api/test)  
 > Use [checkhost.net](https://check-host.net/check-ping?host=https://ahihi.up.railway.app/api/test) to ping the server
+
+
+### License
+
+This project is freely licensed under the [0BSD License](License). You may use it as a reverse proxy or implement as an API or copy it or modify it or anything else you want.
