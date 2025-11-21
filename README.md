@@ -38,6 +38,7 @@
 > Please do not use in production-ready code.
 
 ### Route:
+- `/`: simple `"Hello world from Aegirus"`, did not add any middleware here so don't test on it
 - `/api/test`: to test whatever you want and you can read the logs from the server logs
 <div align="center">
   <img width="1448" height="872" alt="image" src="https://github.com/user-attachments/assets/c7fd9e78-16a3-41b2-b645-59a8363b9f62" />
@@ -46,5 +47,7 @@
 <br>
 
 > [!TIP]
-> API is now live. You can test it [here](https://anti-ddos-production.up.railway.app/)  
+> API is now live. You can test it:  
+> [Render](https://aegirus-anti-ddos-low0.onrender.com/api/test)
+> [Railway](https://ahihi.up.railway.app/api/test)
 > Use [checkhost.net](https://check-host.net/check-ping?host=https://anti-ddos-production.up.railway.app/api/test) to ping the server
