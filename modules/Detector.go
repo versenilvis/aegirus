@@ -76,7 +76,7 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 
 		// Rule A: No User-Agent (amateur bot script)
 		if c.Get("User-Agent") == "" {
-			info.Score += 2
+			info.Score += d.cfg.NoUserAgent
 		}
 
 		// Rule B: (optional) like check path contains "wp-admin" or ".env" ..., that is vulnerability scanning
@@ -112,7 +112,7 @@ func (d *Detector) Cleanup(ctx context.Context) {
 			now := time.Now()
 			count := 0
 			for ip, info := range d.ips {
-				if now.After(info.BannedUntil) && now.Sub(info.LastSeen) > 10*time.Minute {
+				if now.After(info.BannedUntil) && now.Sub(info.LastSeen) > d.cfg.CleanUpOldIPs {
 					delete(d.ips, ip)
 					count++
 				}
