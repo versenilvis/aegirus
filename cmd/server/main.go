@@ -20,7 +20,9 @@ import (
 func main() {
 	if err := godotenv.Load(); err != nil {
 		// WARN: Do not change this to zap logger
-		log.Println("WARN: No .env file found, using default system environment variables.")
+		log.Println("INFO: No .env file found, using your deploy environment variables.")
+	} else {
+		log.Println("INFO: Using .env file")
 	}
 
 	logger.InitLogger()
