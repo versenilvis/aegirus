@@ -35,7 +35,7 @@ func NewDetector(cfg config.DetectorConfig) *Detector {
 
 func (d *Detector) DetectorMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
-		ip := utils.GetClientIP(c)
+		ip := utils.GetRealIP(c)
 
 		d.mu.Lock()
 

@@ -78,7 +78,7 @@ func (rl *RateLimiter) getLimiter(ip, endpoint string) *rate.Limiter {
 // windows user: https://www.apachelounge.com/download/
 func (rl *RateLimiter) RateLimiterMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
-		ip := utils.GetClientIP(c)
+		ip := utils.GetRealIP(c)
 		endpoint := c.Path()
 		limiter := rl.getLimiter(ip, endpoint)
 		if !limiter.Allow() {
