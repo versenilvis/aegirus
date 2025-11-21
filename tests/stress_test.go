@@ -75,7 +75,6 @@ func Test_Run_Full_Analysis(t *testing.T) {
 	t.Logf("Phase 2: Running DDoS Tests...")
 	ddosResults := runScenarioInternal(t, ddosCfg)
 
-	// 3. In báo cáo tổng hợp
 	printCombinedDashboard(t,
 		ScenarioResult{Config: stdCfg, Results: stdResults},
 		ScenarioResult{Config: ddosCfg, Results: ddosResults},

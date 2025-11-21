@@ -116,12 +116,10 @@ func trimMatchedEnds(s string, chars string) string {
 	return s[1 : len(s)-1]
 }
 
-var trustedProxies = os.Getenv("TRUSTED_PROXIES") == "true"
-
 func GetRealIP(c fiber.Ctx) string {
 	// WARN: REMEMBER TO REMOVE TRUSTED_PROXIES VARIABLE IN YOUR .env IF YOU ARE USING YOUR VPS/LOCAL MACHINE,
 	// BUT IF YOU ARE USING RAILWAY OR NGINX,... SET IT TO TRUE IF YOUR SERVICE IS RUNNING
-	if !trustedProxies {
+	if os.Getenv("TRUSTED_PROXIES") != "true" {
 		return c.IP()
 	}
 
