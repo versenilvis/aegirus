@@ -84,6 +84,9 @@ func getWriterSync() zapcore.WriteSyncer {
 	if envPath := os.Getenv("LOG_PATH"); envPath != "" {
 		path = envPath
 	}
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		fmt.Printf("WARN: Could not create log directory: %v\n", err)
+	}
 
 	lumberjackLogger := &lumberjack.Logger{
 		Filename:   path,

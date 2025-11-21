@@ -80,9 +80,7 @@ func (rl *RateLimiter) getLimiter(ip, endpoint string) *rate.Limiter {
 			rl.clients[key] = client
 		}
 	} else {
-		rl.mu.Lock()
 		client.lastSeen = time.Now()
-		rl.mu.Unlock()
 	}
 
 	return client.limiter
