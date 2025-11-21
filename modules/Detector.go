@@ -67,17 +67,12 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 			info.Score = 0
 		}
 
-		// Rule A: Spam requests (< 50ms between 2 request)
-		if !info.LastSeen.IsZero() && now.Sub(info.LastSeen) < 50*time.Millisecond {
-			info.Score += 3
-		}
-
-		// Rule B: No User-Agent (amateur bot script)
+		// Rule A: No User-Agent (amateur bot script)
 		if c.Get("User-Agent") == "" {
 			info.Score += 2
 		}
 
-		// Rule C: (optional) like check path contains "wp-admin" or ".env" ..., that is vulnerability scanning
+		// Rule B: (optional) like check path contains "wp-admin" or ".env" ..., that is vulnerability scanning
 
 		info.LastSeen = now
 
