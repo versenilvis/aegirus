@@ -115,7 +115,7 @@ func (rl *RateLimiter) Cleanup(ctx context.Context) {
 		zap.Duration("client_ttl_seconds", rl.cfg.ClientTTL),
 	)
 
-	ticker := time.NewTicker(time.Duration(rl.cfg.CleanupInterval) * time.Second)
+	ticker := time.NewTicker(rl.cfg.CleanupInterval)
 	defer ticker.Stop()
 
 	for {
