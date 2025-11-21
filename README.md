@@ -56,4 +56,4 @@
 
 ### License
 
-This project is freely licensed under the [0BSD License](License). You may use it as a reverse proxy or implement as an API or copy it or modify it or anything else you want.
+This project is freely licensed under the [0BSD License](LICENSE). You may use it as a reverse proxy or implement as an API or copy it or modify it or anything else you want.
