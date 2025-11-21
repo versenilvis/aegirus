@@ -61,6 +61,7 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 		// if not banned
 		d.mu.Lock()
 
+		info, exists = d.ips[ip]
 		if !exists {
 			info, exists = d.ips[ip]
 			if !exists {
