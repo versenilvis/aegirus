@@ -142,9 +142,6 @@ func (d *Detector) BanIP(ip string, duration time.Duration) {
 		d.ips[ip] = info
 	}
 
-	info.BannedUntil = time.Now().Add(duration)
-	info.Score = d.cfg.BanThreshold
-
 	wasBanned := now.Before(info.BannedUntil)
 	info.BannedUntil = now.Add(duration)
 	info.Score = d.cfg.BanThreshold
