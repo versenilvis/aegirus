@@ -7,14 +7,16 @@ WORKDIR /app
 COPY go.mod go.sum ./
 
 # https://docs.railway.com/guides/dockerfiles#cache-mounts
-# IMPORTANT: GO TO YOUR RAILWAY PROJECT SETTING TO FIND THE ID AND REPLACE WITH THIS
-RUN --mount=type=cache,id=s/22a828da-b3c4-4c0a-902f-be8474c6ac94-/go/pkg/mod,target=/go/pkg/mod \
+# IMPORTANT: for e.g like the link of your service is
+# https://railway.com/project/<PROJECT_ID>/service/<SERVICE_ID>?environmentId=<ENV_ID>
+# then the cache id should be <SERVICE_ID>
+RUN --mount=type=cache,id=s/e1470051-aa02-4bac-982d-b1712ddbfc44-/go/pkg/mod,target=/go/pkg/mod \
     go mod download
 
 COPY . .
 
-RUN --mount=type=cache,id=s/22a828da-b3c4-4c0a-902f-be8474c6ac94-/go/pkg/mod,target=/go/pkg/mod \
-    --mount=type=cache,id=s/22a828da-b3c4-4c0a-902f-be8474c6ac94-/root/.cache/go-build,target=/root/.cache/go-build \
+RUN --mount=type=cache,id=s/e1470051-aa02-4bac-982d-b1712ddbfc44-/go/pkg/mod,target=/go/pkg/mod \
+    --mount=type=cache,id=s/e1470051-aa02-4bac-982d-b1712ddbfc44-/root/.cache/go-build,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o main ./cmd/server/main.go
 
 # https://render.com/docs/docker
