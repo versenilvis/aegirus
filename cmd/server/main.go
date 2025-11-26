@@ -46,14 +46,14 @@ func main() {
 	go rl.Cleanup(ctx)
 	go d.Cleanup(ctx)
 
+	app.Use(rl.RateLimiterMiddleware())
+	app.Use(d.DetectorMiddleware())
+
 	app.Get("/", func(c fiber.Ctx) error {
 		return c.SendString("Hello world from Aegirus")
 	})
 
 	app.Get("/api/test",
-		rl.RateLimiterMiddleware(),
-		d.DetectorMiddleware(),
-
 		func(c fiber.Ctx) error {
 			// WARN: REMEMBER TO REMOVE TRUSTED_PROXIES VARIABLE IN YOUR .env IF YOU ARE USING YOUR VPS/LOCAL MACHINE,
 			// BUT IF YOU ARE USING RAILWAY OR NGINX,... SET IT TO TRUE IF YOUR SERVICE IS RUNNING
