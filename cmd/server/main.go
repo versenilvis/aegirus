@@ -48,24 +48,27 @@ func main() {
 
 	app.Use(rl.RateLimiterMiddleware())
 	app.Use(d.DetectorMiddleware())
+	app.Use(func(c fiber.Ctx) error {
+		err := c.Next()
 
+		// WARN: REMEMBER TO REMOVE TRUSTED_PROXIES VARIABLE IN YOUR .env IF YOU ARE USING YOUR VPS/LOCAL MACHINE,
+		// BUT IF YOU ARE USING RAILWAY OR NGINX,... SET IT TO TRUE IF YOUR SERVICE IS RUNNING
+		ip := utils.GetRealIP(c)
+
+		logger.Log.Info("Request passed",
+			zap.String("ip", ip),
+			zap.String("path", c.Path()),
+			zap.String("HEADER_XFF", c.Get("X-Forwarded-For")), // just for debug in logs
+		)
+		return err
+	})
 	app.Get("/", func(c fiber.Ctx) error {
 		return c.SendString("Hello world from Aegirus")
 	})
 
-	app.Get("/api/test",
-		func(c fiber.Ctx) error {
-			// WARN: REMEMBER TO REMOVE TRUSTED_PROXIES VARIABLE IN YOUR .env IF YOU ARE USING YOUR VPS/LOCAL MACHINE,
-			// BUT IF YOU ARE USING RAILWAY OR NGINX,... SET IT TO TRUE IF YOUR SERVICE IS RUNNING
-			ip := utils.GetRealIP(c)
-
-			logger.Log.Info("Request passed",
-				zap.String("ip", ip),
-				zap.String("path", c.Path()),
-				zap.String("HEADER_XFF", c.Get("X-Forwarded-For")), // just for debug in logs
-			)
-			return c.SendString("Request successful")
-		})
+	app.Get("/api/test", func(c fiber.Ctx) error {
+		return c.SendString("Request successful")
+	})
 
 	// Graceful shutdown for deploy environment like Railway or Render,
 	// you will see air exixting message but you won't see it on deploy environment
