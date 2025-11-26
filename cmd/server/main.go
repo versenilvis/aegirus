@@ -46,8 +46,6 @@ func main() {
 	go rl.Cleanup(ctx)
 	go d.Cleanup(ctx)
 
-	app.Use(rl.RateLimiterMiddleware())
-	app.Use(d.DetectorMiddleware())
 	app.Use(func(c fiber.Ctx) error {
 		err := c.Next()
 
@@ -62,6 +60,9 @@ func main() {
 		)
 		return err
 	})
+
+	app.Use(rl.RateLimiterMiddleware())
+	app.Use(d.DetectorMiddleware())
 	app.Get("/", func(c fiber.Ctx) error {
 		return c.SendString("Hello world from Aegirus")
 	})
