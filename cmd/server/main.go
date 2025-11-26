@@ -52,11 +52,14 @@ func main() {
 		// WARN: REMEMBER TO REMOVE TRUSTED_PROXIES VARIABLE IN YOUR .env IF YOU ARE USING YOUR VPS/LOCAL MACHINE,
 		// BUT IF YOU ARE USING RAILWAY OR NGINX,... SET IT TO TRUE IF YOUR SERVICE IS RUNNING
 		ip := utils.GetRealIP(c)
-
+		status := c.Response().StatusCode()
 		logger.Log.Info("Request passed",
 			zap.String("ip", ip),
 			zap.String("path", c.Path()),
 			zap.String("HEADER_XFF", c.Get("X-Forwarded-For")), // just for debug in logs
+			zap.String("method", c.Method()),
+			zap.Int("status", status),
+			zap.String("user_agent", c.Get("User-Agent")),
 		)
 		return err
 	})
