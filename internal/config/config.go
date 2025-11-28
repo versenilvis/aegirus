@@ -37,7 +37,7 @@ type RateLimiterConfig struct {
 
 type BotChallengeConfig struct {
 	Enabled             bool          `json:"enabled"`
-	SecretKey           string        `json:"-"` // sensitive infomation please use "-"
+	SecretKey           string        `json:"-"` // sensitive information please use "-"
 	CookieName          string        `json:"cookie_name"`
 	CookieTTL           time.Duration `json:"cookie_ttl"`
 	KeyRotationInterval time.Duration `json:"key_rotation_interval"`
@@ -83,7 +83,7 @@ func LoadConfig() *AppConfig {
 		},
 
 		BotChallenge: BotChallengeConfig{
-			Enabled:    os.Getenv("BOT_CHALLENGE_ENABLED") == "true",
+			Enabled:    utils.GetEnvAsBool("BOT_CHALLENGE_ENABLED", true),
 			SecretKey:  utils.GetEnv("BOT_CHALLENGE_SECRET_KEY", ""),
 			CookieName: utils.GetEnv("BOT_CHALLENGE_COOKIE_NAME", "bot_challenge"),
 			CookieTTL:  getEnvAsDuration("BOT_CHALLENGE_COOKIE_TTL", 5*time.Minute),

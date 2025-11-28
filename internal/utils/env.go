@@ -30,3 +30,16 @@ func GetEnvAsFloat(name string, defaultVal float64) float64 {
 	}
 	return defaultVal
 }
+
+func GetEnvAsBool(key string, defaultVal bool) bool {
+	valStr := GetEnv(key, "")
+	if valStr == "" {
+		return defaultVal
+	}
+
+	val, err := strconv.ParseBool(valStr)
+	if err != nil {
+		return defaultVal
+	}
+	return val
+}
