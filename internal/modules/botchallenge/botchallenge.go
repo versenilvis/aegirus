@@ -185,7 +185,7 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 			if !bc.checkRateLimit(ip) {
 				goto ServeChallenge
 			}
-			nonce, err := strconv.Atoi(nonceStr)
+			nonce, err := strconv.ParseInt(nonceStr, 10, 64)
 			if err == nil {
 				if bc.pow.VerifyPOW(salt, nonce) {
 					logger.Log.Info("POW Solved Successfully", zap.String("ip", ip))
