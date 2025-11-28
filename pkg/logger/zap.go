@@ -7,8 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"anti-ddos/utils"
-
+	"aegirus/internal/utils"
 	// z "go.uber.org/zap"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
