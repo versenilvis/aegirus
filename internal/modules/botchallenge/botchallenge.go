@@ -3,6 +3,7 @@ package botchallenge
 
 import (
 	_ "embed"
+	"html"
 	"strconv"
 	"strings"
 	"time"
@@ -40,13 +41,13 @@ func NewBotChallenge(cfg config.BotChallengeConfig) *BotChallenge {
 var challengeHTML string
 
 func (bc *BotChallenge) renderTemplate(salt string, difficulty int, reqID string) string {
-	html := challengeHTML
-	html = strings.ReplaceAll(html, "{{COOKIE_NAME}}", bc.cfg.CookieName)
-	html = strings.ReplaceAll(html, "{{TTL}}", strconv.Itoa(int(time.Duration(bc.cfg.CookieTTL).Seconds())))
-	html = strings.ReplaceAll(html, "{{SALT}}", salt)
-	html = strings.ReplaceAll(html, "{{DIFFICULTY}}", strconv.Itoa(difficulty))
-	html = strings.ReplaceAll(html, "{{REQUEST_ID}}", reqID)
-	return html
+	htmlFile := challengeHTML
+	htmlFile = strings.ReplaceAll(htmlFile, "{{COOKIE_NAME}}", bc.cfg.CookieName)
+	htmlFile = strings.ReplaceAll(htmlFile, "{{TTL}}", strconv.Itoa(int(time.Duration(bc.cfg.CookieTTL).Seconds())))
+	htmlFile = strings.ReplaceAll(htmlFile, "{{SALT}}", html.EscapeString(salt))
+	htmlFile = strings.ReplaceAll(htmlFile, "{{DIFFICULTY}}", strconv.Itoa(difficulty))
+	htmlFile = strings.ReplaceAll(htmlFile, "{{REQUEST_ID}}", html.EscapeString(reqID))
+	return htmlFile
 }
 
 func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
