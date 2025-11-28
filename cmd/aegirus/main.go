@@ -8,7 +8,8 @@ import (
 	"syscall"
 
 	"aegirus/internal/config"
-	modules "aegirus/internal/modules/ratelimiter"
+	"aegirus/internal/modules/detector"
+	"aegirus/internal/modules/ratelimiter"
 	"aegirus/internal/utils"
 	"aegirus/pkg/logger"
 
@@ -39,8 +40,8 @@ func main() {
 
 	app := fiber.New()
 
-	d := modules.NewDetector(cfg.Detector)
-	rl := modules.NewRateLimiter(cfg.RateLimiter, d)
+	d := detector.NewDetector(cfg.Detector)
+	rl := ratelimiter.NewRateLimiter(cfg.RateLimiter, d)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go rl.Cleanup(ctx)

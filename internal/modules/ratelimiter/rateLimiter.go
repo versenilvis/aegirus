@@ -1,5 +1,5 @@
-// Package modules - Rate limiter
-package modules
+// Package ratelimiter - Rate limiter
+package ratelimiter
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"anti-ddos/config"
-	"anti-ddos/pkg/logger"
-	"anti-ddos/utils"
+	"aegirus/internal/config"
+	"aegirus/internal/utils"
+	"aegirus/pkg/logger"
 
 	"github.com/gofiber/fiber/v3"
 	"go.uber.org/zap"

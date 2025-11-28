@@ -1,14 +1,14 @@
-// Package modules - Detector & IP Blocker
-package modules
+// Package detector - Detector & IP Blocker
+package detector
 
 import (
 	"context"
 	"sync"
 	"time"
 
-	"anti-ddos/config"
-	"anti-ddos/pkg/logger"
-	"anti-ddos/utils"
+	"aegirus/internal/config"
+	"aegirus/internal/utils"
+	"aegirus/pkg/logger"
 
 	"github.com/gofiber/fiber/v3"
 	"go.uber.org/zap"

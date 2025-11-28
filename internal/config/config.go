@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"anti-ddos/utils"
+	"aegirus/internal/utils"
 )
 
 type AppConfig struct {
