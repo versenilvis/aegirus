@@ -35,7 +35,7 @@ func NewTokenManager(cfg config.BotChallengeConfig) *TokenManager {
 }
 
 func (tm *TokenManager) startKeyRotation() {
-	ticker := time.NewTicker(tm.cfg.KeyRotationInterval)
+	ticker := time.NewTicker(time.Duration(tm.cfg.KeyRotationInterval))
 	for range ticker.C {
 		tm.rotateKeys()
 	}
@@ -45,7 +45,7 @@ func (tm *TokenManager) rotateKeys() {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
-	epoch := time.Now().Unix() / int64(tm.cfg.KeyRotationInterval.Seconds())
+	epoch := time.Now().Unix() / int64(time.Duration(tm.cfg.KeyRotationInterval).Seconds())
 
 	tm.currentKey = tm.deriveKey(epoch)
 	tm.previousKey = tm.deriveKey(epoch - 1)
@@ -90,7 +90,7 @@ func (tm *TokenManager) Validate(ip, tokenString string) bool {
 		return false
 	}
 
-	if time.Now().Unix()-ts > int64(tm.cfg.CookieTTL.Seconds()) {
+	if time.Now().Unix()-ts > int64(time.Duration(tm.cfg.CookieTTL).Seconds()) {
 		return false
 	}
 

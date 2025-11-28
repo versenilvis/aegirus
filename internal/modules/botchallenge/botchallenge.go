@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"strconv"
 	"strings"
+	"time"
 
 	"aegirus/internal/config"
 	"aegirus/internal/utils"
@@ -41,7 +42,7 @@ var challengeHTML string
 func (bc *BotChallenge) renderTemplate(salt string, difficulty int, reqID string) string {
 	html := challengeHTML
 	html = strings.ReplaceAll(html, "{{COOKIE_NAME}}", bc.cfg.CookieName)
-	html = strings.ReplaceAll(html, "{{TTL}}", strconv.Itoa(int(bc.cfg.CookieTTL.Seconds())))
+	html = strings.ReplaceAll(html, "{{TTL}}", strconv.Itoa(int(time.Duration(bc.cfg.CookieTTL).Seconds())))
 	html = strings.ReplaceAll(html, "{{SALT}}", salt)
 	html = strings.ReplaceAll(html, "{{DIFFICULTY}}", strconv.Itoa(difficulty))
 	html = strings.ReplaceAll(html, "{{REQUEST_ID}}", reqID)
@@ -85,7 +86,7 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 					c.Cookie(&fiber.Cookie{
 						Name:     bc.cfg.CookieName,
 						Value:    token,
-						MaxAge:   int(bc.cfg.CookieTTL.Seconds()),
+						MaxAge:   int(time.Duration(bc.cfg.CookieTTL).Seconds()),
 						Path:     "/",
 						SameSite: "Lax",
 					})

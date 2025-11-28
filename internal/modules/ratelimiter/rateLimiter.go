@@ -100,7 +100,7 @@ func (rl *RateLimiter) RateLimiterMiddleware() fiber.Handler {
 			rl.mu.Unlock()
 
 			if rl.banip != nil {
-				rl.banip.BanIP(ip, rl.cfg.BanDuration)
+				rl.banip.BanIP(ip, time.Duration(rl.cfg.BanDuration))
 			}
 			logger.Log.Warn("Rate limit exceeded",
 				zap.String("ip", ip),
@@ -119,11 +119,11 @@ func (rl *RateLimiter) RateLimiterMiddleware() fiber.Handler {
 
 func (rl *RateLimiter) Cleanup(ctx context.Context) {
 	logger.Log.Info("Starting rate limiter cleanup routine",
-		zap.Duration("cleanup_interval_seconds", rl.cfg.CleanupInterval),
-		zap.Duration("client_ttl_seconds", rl.cfg.ClientTTL),
+		zap.Duration("cleanup_interval_seconds", time.Duration(rl.cfg.CleanupInterval)),
+		zap.Duration("client_ttl_seconds", time.Duration(rl.cfg.ClientTTL)),
 	)
 
-	ticker := time.NewTicker(rl.cfg.CleanupInterval)
+	ticker := time.NewTicker(time.Duration(rl.cfg.CleanupInterval))
 	defer ticker.Stop()
 
 	for {
@@ -137,7 +137,7 @@ func (rl *RateLimiter) Cleanup(ctx context.Context) {
 			now := time.Now()
 			for key, client := range rl.clients {
 				lastSeenTime := time.Unix(0, atomic.LoadInt64(&client.lastSeen))
-				if now.Sub(lastSeenTime) > rl.cfg.ClientTTL {
+				if now.Sub(lastSeenTime) > time.Duration(rl.cfg.ClientTTL) {
 					delete(rl.clients, key)
 					removed++
 				}
