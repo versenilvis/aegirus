@@ -34,7 +34,7 @@ func (p *POW) GenerateSalt() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-func (p *POW) VerifyPOW(salt string, nonce int) bool {
+func (p *POW) VerifyPOW(salt string, nonce int64) bool {
 	data := fmt.Sprintf("%s%d", salt, nonce)
 	hash := sha256.Sum256([]byte(data))
 	hashStr := hex.EncodeToString(hash[:])
