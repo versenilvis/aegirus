@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"aegirus/internal/config"
@@ -53,10 +54,17 @@ func main() {
 	bc := botchallenge.NewBotChallenge(cfg.BotChallenge)
 
 	smartLog := utils.NewSmartLogger()
-
+	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
-	go rl.Cleanup(ctx)
-	go d.Cleanup(ctx)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		rl.Cleanup(ctx)
+	}()
+	go func() {
+		defer wg.Done()
+		d.Cleanup(ctx)
+	}()
 
 	app.Use(func(c fiber.Ctx) error {
 		reqID := utils.GenerateRayID()
