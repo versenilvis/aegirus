@@ -101,8 +101,11 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 			}
 		}
 		c.Locals("is_challenge", true)
-		newSalt := bc.pow.GenerateSalt()
-
+		newSalt, err := bc.pow.GenerateSalt()
+		if err != nil {
+			logger.Log.Error("Failed to generate salt", zap.Error(err))
+			return c.Status(500).SendString("Internal Server Error")
+		}
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		// Không cache trang challenge này
 		c.Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")

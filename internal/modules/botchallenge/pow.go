@@ -26,10 +26,12 @@ func NewPOW(difficulty int) *POW {
 	return &POW{Difficulty: difficulty}
 }
 
-func (p *POW) GenerateSalt() string {
+func (p *POW) GenerateSalt() (string, error) {
 	b := make([]byte, 16)
-	rand.Read(b)
-	return hex.EncodeToString(b)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 func (p *POW) VerifyPOW(salt string, nonce int) bool {
