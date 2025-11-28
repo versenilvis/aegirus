@@ -23,21 +23,34 @@ type TokenManager struct {
 	mu          sync.RWMutex
 	currentKey  []byte
 	previousKey []byte
+
+	stop chan struct{}
 }
 
 func NewTokenManager(cfg config.BotChallengeConfig) *TokenManager {
 	tm := &TokenManager{
-		cfg: cfg,
+		cfg:  cfg,
+		stop: make(chan struct{}),
 	}
 	tm.rotateKeys()
 	go tm.startKeyRotation()
 	return tm
 }
 
+func (tm *TokenManager) Stop() {
+	close(tm.stop)
+}
+
 func (tm *TokenManager) startKeyRotation() {
 	ticker := time.NewTicker(time.Duration(tm.cfg.KeyRotationInterval))
-	for range ticker.C {
-		tm.rotateKeys()
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			tm.rotateKeys()
+		case <-tm.stop:
+			return
+		}
 	}
 }
 
