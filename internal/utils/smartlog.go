@@ -22,7 +22,9 @@ type SmartLogger struct {
 }
 
 func NewSmartLogger() *SmartLogger {
-	sl := &SmartLogger{}
+	sl := &SmartLogger{
+		done: make(chan struct{}),
+	}
 	go sl.cleanupLoop()
 	return sl
 }
