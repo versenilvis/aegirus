@@ -59,7 +59,7 @@ func (sl *SmartLogger) ShouldLog(ip string) (bool, int64) {
 }
 
 func (sl *SmartLogger) cleanupLoop() {
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {

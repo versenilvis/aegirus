@@ -143,7 +143,7 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 			reqID = "unknown"
 		}
 
-		// just for debug ui (/?ui=1)
+		// NOTE: just for ui debug only (/?ui=1)
 		// if c.Query("ui") == "1" {
 		// 	c.Set("Content-Type", "text/html; charset=utf-8")
 		//
