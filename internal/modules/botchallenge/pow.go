@@ -16,6 +16,13 @@ type POW struct {
 }
 
 func NewPOW(difficulty int) *POW {
+	if difficulty < 0 {
+		difficulty = 0
+	}
+	// SHA-256 hex string max length is 64 characters
+	if difficulty > 64 {
+		difficulty = 64
+	}
 	return &POW{Difficulty: difficulty}
 }
 
