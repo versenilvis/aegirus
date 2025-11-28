@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"anti-ddos/config"
-	"anti-ddos/modules"
-	"anti-ddos/pkg/logger"
-	"anti-ddos/utils"
+	"aegirus/internal/config"
+	modules "aegirus/internal/modules/ratelimiter"
+	"aegirus/internal/utils"
+	"aegirus/pkg/logger"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/joho/godotenv"
