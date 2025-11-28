@@ -302,7 +302,7 @@
 
         async function solvePoW() {
             const salt = "{{SALT}}";
-            const difficulty = {{DIFFICULTY}};
+            const difficulty = parseInt('{{DIFFICULTY}}', 10);
             const target = "0".repeat(difficulty);
 
             let nonce = 0;
