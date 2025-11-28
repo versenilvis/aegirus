@@ -4,6 +4,7 @@ package botchallenge
 import (
 	"bytes"
 	_ "embed"
+	"encoding/json"
 	"html/template"
 	"strconv"
 	"sync"
@@ -60,7 +61,12 @@ func NewBotChallenge(cfg config.BotChallengeConfig) *BotChallenge {
 		diff = 6
 	}
 
-	htmlTempl, err := template.New("challenge").Parse(challengeHTML)
+	htmlTempl := template.New("challenge").Funcs(template.FuncMap{
+		"js": func(s string) template.JS {
+			return template.JS(s)
+		},
+	})
+	htmlTempl, err := htmlTempl.Parse(challengeHTML)
 	if err != nil {
 		panic(err)
 	}
@@ -116,10 +122,13 @@ func (bc *BotChallenge) checkRateLimit(ip string) bool {
 func (bc *BotChallenge) renderTemplate(salt string, difficulty int, reqID string) string {
 	var buf bytes.Buffer
 
+	// JSON-encode SALT to safely embed in JavaScript string literal
+	saltJSON, _ := json.Marshal(salt)
+
 	data := map[string]string{
 		"COOKIE_NAME": bc.cfg.CookieName,
 		"TTL":         strconv.Itoa(int(time.Duration(bc.cfg.CookieTTL).Seconds())),
-		"SALT":        salt,
+		"SALT":        string(saltJSON), // JSON-encoded string
 		"DIFFICULTY":  strconv.Itoa(difficulty),
 		"REQUEST_ID":  reqID,
 	}
