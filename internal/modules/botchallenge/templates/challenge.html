@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Check | Aegirus</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --card-bg: #0a0a0a;
+            --border-color: #333333;
+            --text-main: #ededed;
+            --text-muted: #888888;
+            --accent: #ffffff;
+            --success: #50e3c2;         }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex; justify-content: center; align-items: center;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow: hidden; position: relative;
+        }
+
+        body::before {
+            content: ''; position: absolute; inset: 0;
+            background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
+            background-size: 24px 24px;
+            opacity: 0.2; pointer-events: none;
+        }
+
+        .container {
+            text-align: center;
+            background: var(--card-bg);
+            padding: 40px 60px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.05), 0 20px 40px rgba(0,0,0,0.8);
+            max-width: 420px; width: 90%;
+            position: relative;
+            margin: auto;
+            animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+        /* Shield Icon (Monochrome) */
+        .shield-icon { width: 48px; height: 48px; margin: 0 auto 24px; color: var(--text-main); }
+        .shield-icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.5; }
+
+        /* Spinner (White) */
+        .spinner-wrapper { position: relative; width: 80px; height: 80px; margin: 0 auto 32px; }
+        .spinner { position: absolute; inset: 0; border: 2px solid var(--border-color); border-radius: 50%; }
+        .spinner::before { content: ''; position: absolute; inset: -2px; border: 2px solid transparent; border-top-color: var(--accent); border-radius: 50%; animation: spin 1s cubic-bezier(0.6, 0.2, 0.4, 0.8) infinite; }
+
+        .spinner-inner {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .spinner-inner svg {
+            position: absolute;
+            width: 24px; height: 24px;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .icon-shield { opacity: 1; transform: scale(1); stroke: var(--text-muted); }
+        .icon-check { opacity: 0; transform: scale(0) rotate(-45deg); stroke: var(--success); stroke-width: 3; }
+
+        .spinner-wrapper.success .icon-shield { opacity: 0; transform: scale(0) rotate(45deg); }
+        .spinner-wrapper.success .icon-check { opacity: 1; transform: scale(1.5) rotate(0deg); }
+
+        .spinner-wrapper.success .spinner::before { border-top-color: var(--success); border-color: var(--success); animation: none; transition: border-color 0.3s; }
+
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.02em; }
+        .subtitle { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 32px; line-height: 1.6; }
+
+        .progress-container { margin-bottom: 32px; }
+        .progress-bar { height: 2px; background: var(--border-color); width: 100%; margin-bottom: 24px; position: relative; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.4s ease; box-shadow: 0 0 10px rgba(255,255,255,0.3); }
+
+        .steps { display: flex; flex-direction: column; gap: 16px; align-items: flex-start; }
+        .step { display: flex; align-items: center; gap: 12px; font-size: 0.8125rem; color: var(--text-muted); transition: color 0.3s; }
+        .step.active { color: var(--text-main); }
+        .step.completed { color: var(--text-main); }
+
+        .step-icon {
+            width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--border-color);
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative;
+            transition: all 0.3s;
+        }
+
+        .step.active .step-icon { border-color: var(--accent); }
+        .step.active .step-icon::before {
+            content: ''; position: absolute; width: 6px; height: 6px; background: var(--accent); border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+
+        .step.completed .step-icon { border-color: var(--success); background: transparent; }
+        .step.completed .step-icon svg {
+            display: block; width: 10px; height: 10px; stroke: var(--success); stroke-width: 3;
+            animation: checkmark 0.3s ease-in-out forwards;
+        }
+
+        .step.completed .step-icon::before { display: none; }
+
+        .step-icon svg { display: none; }
+
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
+        @keyframes checkmark { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        .footer { margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px; }
+        .footer-logo { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.75rem; color: var(--text-muted); }
+        .footer-logo svg { width: 14px; height: 14px; }
+
+        /* --- RAY ID STYLE (HOVER & COPY) --- */
+        .ray-id-wrapper {
+            margin-top: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+            font-size: 0.7rem;
+            color: #666;
+        }
+
+        .ray-label {
+            color: var(--text-muted);
+        }
+
+        .ray-id-code {
+            font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", "Droid Sans Mono", "Source Code Pro", monospace;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 2px 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .ray-id-code:hover {
+            color: var(--accent);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .copy-tooltip {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%) translateY(5px);
+            background: var(--success);
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.6rem;
+            font-weight: bold;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        .ray-id-code.copied + .copy-tooltip {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 60px 24px;
+                width: 90%;
+            }
+            .footer { margin-top: 40px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner-wrapper" id="mainSpinner">
+            <div class="spinner"></div>
+            <div class="spinner-inner">
+                <!-- Shield -->
+                <svg class="icon-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                <!-- Icon Tick (Checkmark) -->
+                <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+            </div>
+        </div>
+
+        <h1>Checking your browser</h1>
+        <p class="subtitle">Please verify you are a human.<br>This will only take a few seconds.</p>
+
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="steps">
+                <div class="step" id="step1">
+                    <div class="step-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </div>
+                    <span>Analyzing browser environment</span>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </div>
+                    <span>Verifying secure connection</span>
+                </div>
+                <div class="step" id="step3">
+                    <div class="step-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </div>
+                    <span>Generating proof of work</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="footer-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                <span>Protected by <strong>Aegirus</strong></span>
+            </div>
+            <!-- Ray ID Wrapper with Copy Functionality -->
+            <div class="ray-id-wrapper">
+                <span class="ray-label">Ray ID:</span>
+                <span class="ray-id-code" id="rayIdCode" onclick="copyRayID()">{{REQUEST_ID}}</span>
+                <div class="copy-tooltip">Copied!</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. UI HELPER FUNCTIONS ---
+        const steps = ['step1', 'step2', 'step3'];
+        const progressFill = document.getElementById('progressFill');
+        let currentStep = 0;
+
+        function updateProgress() {
+            const progress = (currentStep / steps.length) * 100;
+            progressFill.style.width = progress + '%';
+        }
+
+        function activateStep(index) {
+            currentStep = index;
+            if (index > 0) {
+                document.getElementById(steps[index - 1]).classList.remove('active');
+                document.getElementById(steps[index - 1]).classList.add('completed');
+            }
+            if (index < steps.length) {
+                document.getElementById(steps[index]).classList.add('active');
+            }
+            updateProgress();
+        }
+
+        function copyRayID() {
+            const rayIDText = "{{REQUEST_ID}}";
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(rayIDText).then(() => {
+                // Show tooltip by adding class to the CODE element
+                const codeEl = document.getElementById('rayIdCode');
+                codeEl.classList.add('copied');
+
+                // Hide tooltip after 2s
+                setTimeout(() => {
+                    codeEl.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
+        // --- 2. CRYPTO FUNCTIONS (PoW) ---
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function solvePoW() {
+            const salt = "{{SALT}}";
+            const difficulty = {{DIFFICULTY}};
+            const target = "0".repeat(difficulty);
+
+            let nonce = 0;
+            while (true) {
+                const hash = await sha256(salt + nonce);
+                if (hash.startsWith(target)) {
+                    return { salt, nonce };
+                }
+                nonce++;
+                if (nonce % 2000 === 0) await new Promise(r => setTimeout(r, 0));
+            }
+        }
+
+        // --- 3. MAIN LOGIC ---
+
+        const animationTask = new Promise(resolve => {
+            activateStep(0);
+            setTimeout(() => activateStep(1), 500);
+            setTimeout(() => activateStep(2), 1000);
+            setTimeout(() => {
+                document.getElementById(steps[2]).classList.remove('active');
+                document.getElementById(steps[2]).classList.add('completed');
+                progressFill.style.width = '100%';
+
+                document.getElementById('mainSpinner').classList.add('success');
+
+                resolve();
+            }, 1500);
+        });
+
+        const solverTask = solvePoW();
+
+        Promise.all([animationTask, solverTask]).then((values) => {
+            const solution = values[1];
+            const salt = solution.salt;
+            const nonce = solution.nonce;
+
+            setTimeout(() => {
+                const sep = window.location.search ? "&" : "?";
+                window.location.href = window.location.href + sep + "salt=" + salt + "&nonce=" + nonce;
+            }, 500);
+        });
+    </script>
+</body>
+</html>

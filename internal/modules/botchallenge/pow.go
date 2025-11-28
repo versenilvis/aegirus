@@ -1,0 +1,35 @@
+// Package botchallenge - Proof of Work
+package botchallenge
+
+import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"strings"
+)
+
+const DefaultDifficulty = 3
+
+type POW struct {
+	Difficulty int
+}
+
+func NewPOW(difficulty int) *POW {
+	return &POW{Difficulty: difficulty}
+}
+
+func (p *POW) GenerateSalt() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+func (p *POW) VerifyPOW(salt string, nonce int) bool {
+	data := fmt.Sprintf("%s%d", salt, nonce)
+	hash := sha256.Sum256([]byte(data))
+	hashStr := hex.EncodeToString(hash[:])
+
+	prefix := strings.Repeat("0", p.Difficulty)
+	return strings.HasPrefix(hashStr, prefix)
+}
