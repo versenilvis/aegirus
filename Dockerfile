@@ -18,7 +18,7 @@ COPY . .
 
 RUN --mount=type=cache,id=s/e1470051-aa02-4bac-982d-b1712ddbfc44-/go/pkg/mod,target=/go/pkg/mod \
     --mount=type=cache,id=s/e1470051-aa02-4bac-982d-b1712ddbfc44-/root/.cache/go-build,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o main ./cmd/server/main.go
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o main ./cmd/aegirus/main.go
 
 # https://render.com/docs/docker
 FROM alpine:3.20
