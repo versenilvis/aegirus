@@ -245,7 +245,7 @@
             <!-- Ray ID Wrapper with Copy Functionality -->
             <div class="ray-id-wrapper">
                 <span class="ray-label">Ray ID:</span>
-                <span class="ray-id-code" data-ray-id="{{.REQUEST_ID}}" id="rayIdCode" onclick="copyRayID()">{{.REQUEST_ID}}</span>
+                <span class="ray-id-code" data-ray-id="{{.REQUEST_ID}}" id="rayIdCode" </span>
                 <div class="copy-tooltip">Copied!</div>
             </div>
         </div>
@@ -275,13 +275,13 @@
         }
 
         function copyRayID() {
-            const codeEl = document.getElementById('rayIdCode');
+            const codeEl = document.getElementById('rayIdCode').addEventListener('click', copyRayID);
             const rayIDText = codeEl.getAttribute('data-ray-id');
 
             // Copy to clipboard
             navigator.clipboard.writeText(rayIDText).then(() => {
                 // Show tooltip by adding class to the CODE element
-                const codeEl = document.getElementById('rayIdCode');
+                const codeEl = document.getElementById('rayIdCode').addEventListener('click', copyRayID);
                 codeEl.classList.add('copied');
 
                 // Hide tooltip after 2s
@@ -301,7 +301,30 @@
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        async function solvePoW() {
+        /**
+         * Solve Proof of Work challenge
+         * 
+         * Expected solve times per difficulty (approximate):
+         * - difficulty 0: Instant (no hash check required)
+         * - difficulty 1: ~16 attempts (2^4)
+         * - difficulty 2: ~256 attempts (2^8)
+         * - difficulty 3: ~4,096 attempts (2^12)
+         * - difficulty 4: ~65,536 attempts (2^16)
+         * - difficulty 5: ~1,048,576 attempts (2^20)
+         * - difficulty 6: ~16,777,216 attempts (2^24)
+         * 
+         * Note: difficulty=0 is allowed and results in instant success (any hash matches)
+         * 
+         * @param {Object} options - Configuration options
+         * @param {number} options.maxIterations - Maximum iterations before giving up (default: 100000000)
+         * @param {number} options.timeoutMs - Maximum time in milliseconds before giving up (default: 30000)
+         * @returns {Promise<Object>} Solution object with salt, nonce, and error fields
+         */
+        async function solvePoW(options = {}) {
+            const MAX_ITERATIONS = options.maxIterations || 100000000; // ~100M iterations default
+            const TIMEOUT_MS = options.timeoutMs || 30000; // 30 seconds default
+            const startTime = Date.now();
+
             let salt;
             try {
                 salt = JSON.parse({{.SALT | js}});
@@ -309,19 +332,37 @@
                 throw new Error("Invalid salt format: " + e.message);
             }
 
+            // Parse and validate difficulty
             const difficultyRaw = parseInt('{{.DIFFICULTY}}', 10);
+            let difficulty;
+            
             if (!Number.isFinite(difficultyRaw) || !Number.isInteger(difficultyRaw) || difficultyRaw < 0 || difficultyRaw > 10) {
                 console.error("Invalid difficulty value:", difficultyRaw);
-                const difficulty = 3;
-                const target = "0".repeat(difficulty);
-                throw new Error("Invalid difficulty value: " + difficultyRaw + ". Using safe default: " + difficulty);
+                // Use safe default and continue (don't throw)
+                difficulty = 3;
+                console.warn("Using safe default difficulty:", difficulty);
+            } else {
+                difficulty = difficultyRaw;
             }
-            const difficulty = difficultyRaw;
-            const target = "0".repeat(difficulty);
 
+            // difficulty=0 means instant success (any hash matches)
+            if (difficulty === 0) {
+                return { salt, nonce: 0, error: null };
+            }
+
+            const target = "0".repeat(difficulty);
             let nonce = 0;
-            const MAX_ITERATIONS = 100000000; // ~100M iterations; adjust based on intended difficulty range
+
             while (nonce < MAX_ITERATIONS) {
+                // Check timeout
+                if (Date.now() - startTime > TIMEOUT_MS) {
+                    return { 
+                        salt: null, 
+                        nonce: null, 
+                        error: `Proof of work timeout exceeded (${TIMEOUT_MS}ms). Please try again.` 
+                    };
+                }
+
                 const hash = await sha256(salt + nonce);
                 if (hash.startsWith(target)) {
                     return { salt, nonce, error: null };
@@ -329,10 +370,46 @@
                 nonce++;
                 if (nonce % 2000 === 0) await new Promise(r => setTimeout(r, 0));
             }
-            return { salt: null, nonce: null, error: "Proof of work solution not found within maximum iterations" };
+
+            return { 
+                salt: null, 
+                nonce: null, 
+                error: `Proof of work solution not found within maximum iterations (${MAX_ITERATIONS}). Please try again.` 
+            };
         }
 
-        // --- 3. MAIN LOGIC ---
+        // --- 3. ERROR HANDLING HELPER ---
+        /**
+         * Show error message to user by updating subtitle element
+         * Properly resolves CSS variable to actual color value
+         */
+        function showErrorMessage(message) {
+            const subtitle = document.querySelector('.subtitle');
+            if (!subtitle) {
+                console.error("Subtitle element not found");
+                return;
+            }
+
+            subtitle.textContent = message;
+
+            // Get computed CSS variable value (with fallback)
+            try {
+                const computedStyle = getComputedStyle(document.documentElement);
+                const cssVarValue = computedStyle.getPropertyValue('--text-muted').trim();
+                
+                if (cssVarValue) {
+                    subtitle.style.color = cssVarValue;
+                } else {
+                    // Fallback to static color if CSS variable not found
+                    subtitle.style.color = '#888888'; // matches var(--text-muted) default
+                }
+            } catch (e) {
+                console.warn("Failed to get CSS variable value:", e);
+                subtitle.style.color = '#888888'; // fallback hex color
+            }
+        }
+
+        // --- 4. MAIN LOGIC ---
 
         const animationTask = new Promise(resolve => {
             activateStep(0);
@@ -357,9 +434,7 @@
             // Validate solution before accessing properties
             if (!solution || solution.error || solution.salt === null || solution.nonce === null) {
                 console.error("Proof of work failed:", solution ? solution.error : "No solution returned");
-                // Show error to user - could redirect to error page or show message
-                document.querySelector('.subtitle').textContent = "Verification failed. Please refresh the page.";
-                document.querySelector('.subtitle').style.color = 'var(--text-muted)';
+                showErrorMessage("Verification failed. Please refresh the page.");
                 return;
             }
 
@@ -374,8 +449,7 @@
         }).catch((error) => {
             // Handle any errors from solvePoW or Promise.all
             console.error("Error during proof of work:", error);
-            document.querySelector('.subtitle').textContent = "Verification failed. Please refresh the page.";
-            document.querySelector('.subtitle').style.color = 'var(--text-muted)';
+            showErrorMessage("Verification failed. Please refresh the page.");
         });
     </script>
 </body>
