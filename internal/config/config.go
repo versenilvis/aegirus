@@ -10,12 +10,13 @@ import (
 )
 
 type AppConfig struct {
-	Port           string             `json:"port"`
-	AppEnv         string             `json:"app_env"`
-	TrustedProxies string             `json:"trusted_proxies"`
-	Detector       DetectorConfig     `json:"detector"`
-	RateLimiter    RateLimiterConfig  `json:"rate_limiter"`
-	BotChallenge   BotChallengeConfig `json:"bot_challenge"`
+	Port            string             `json:"port"`
+	AppEnv          string             `json:"app_env"`
+	TrustedProxies  string             `json:"trusted_proxies"`
+	LogSamplingRate int                `json:"log_sampling_rate"`
+	Detector        DetectorConfig     `json:"detector"`
+	RateLimiter     RateLimiterConfig  `json:"rate_limiter"`
+	BotChallenge    BotChallengeConfig `json:"bot_challenge"`
 }
 
 type DetectorConfig struct {
@@ -71,6 +72,8 @@ func LoadConfig() *AppConfig {
 		Port:           utils.GetEnv("PORT", "8080"),
 		AppEnv:         utils.GetEnv("APP_ENV", "development"),
 		TrustedProxies: utils.GetEnv("TRUSTED_PROXIES", ""),
+
+		LogSamplingRate: utils.GetEnvAsInt("LOG_SAMPLING_RATE", 10),
 
 		Detector: DetectorConfig{
 			BanThreshold:   utils.GetEnvAsInt("DETECTOR_BAN_THRESHOLD", 10),

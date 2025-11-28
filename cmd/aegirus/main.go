@@ -113,7 +113,10 @@ func main() {
 			}
 			return err
 		}
-		if rand.Intn(100) < 10 {
+		// NOTE: set LOG_SAMPLING_RATE=100 in .env -> All log (Debug or development but not recommended)
+		// set LOG_SAMPLING_RATE=10 (or 5) in .env -> 10% log (Production)
+		// set LOG_SAMPLING_RATE=1 (or 0) in .env -> 0% log (While being ddos, save I/O)
+		if rand.Intn(100) < cfg.LogSamplingRate {
 			logger.Log.Info("Request passed",
 				zap.String("req_id", reqID),
 				zap.String("ip", ip),
