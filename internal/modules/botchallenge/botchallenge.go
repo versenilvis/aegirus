@@ -42,7 +42,7 @@ var challengeHTML string
 
 func (bc *BotChallenge) renderTemplate(salt string, difficulty int, reqID string) string {
 	htmlFile := challengeHTML
-	htmlFile = strings.ReplaceAll(htmlFile, "{{COOKIE_NAME}}", bc.cfg.CookieName)
+	htmlFile = strings.ReplaceAll(htmlFile, "{{COOKIE_NAME}}", html.EscapeString(bc.cfg.CookieName))
 	htmlFile = strings.ReplaceAll(htmlFile, "{{TTL}}", strconv.Itoa(int(time.Duration(bc.cfg.CookieTTL).Seconds())))
 	htmlFile = strings.ReplaceAll(htmlFile, "{{SALT}}", html.EscapeString(salt))
 	htmlFile = strings.ReplaceAll(htmlFile, "{{DIFFICULTY}}", strconv.Itoa(difficulty))
@@ -61,11 +61,13 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 			reqID = "unknown"
 		}
 
-		if c.Query("ui") == "1" {
-			c.Set("Content-Type", "text/html; charset=utf-8")
+		// just for debug ui (/?ui=1)
+		// if c.Query("ui") == "1" {
+		// 	c.Set("Content-Type", "text/html; charset=utf-8")
+		//
+		// 	return c.SendString(bc.renderTemplate("", bc.pow.Difficulty, reqID))
+		// }
 
-			return c.SendString(bc.renderTemplate("", bc.pow.Difficulty, reqID))
-		}
 		ip := utils.GetRealIP(c)
 		cookie := c.Cookies(bc.cfg.CookieName)
 
