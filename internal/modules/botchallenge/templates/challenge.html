@@ -302,8 +302,21 @@
         }
 
         async function solvePoW() {
-            const salt = "{{SALT}}";
-            const difficulty = parseInt('{{DIFFICULTY}}', 10);
+            let salt;
+            try {
+                salt = JSON.parse("{{SALT}}");
+            } catch (e) {
+                throw new Error("Invalid salt format: " + e.message);
+            }
+
+            const difficultyRaw = parseInt('{{DIFFICULTY}}', 10);
+            if (!Number.isFinite(difficultyRaw) || !Number.isInteger(difficultyRaw) || difficultyRaw < 0 || difficultyRaw > 10) {
+                console.error("Invalid difficulty value:", difficultyRaw);
+                const difficulty = 3;
+                const target = "0".repeat(difficulty);
+                throw new Error("Invalid difficulty value: " + difficultyRaw + ". Using safe default: " + difficulty);
+            }
+            const difficulty = difficultyRaw;
             const target = "0".repeat(difficulty);
 
             let nonce = 0;
@@ -311,11 +324,12 @@
             while (nonce < MAX_ITERATIONS) {
                 const hash = await sha256(salt + nonce);
                 if (hash.startsWith(target)) {
-                    return { salt, nonce };
+                    return { salt, nonce, error: null };
                 }
                 nonce++;
                 if (nonce % 2000 === 0) await new Promise(r => setTimeout(r, 0));
             }
+            return { salt: null, nonce: null, error: "Proof of work solution not found within maximum iterations" };
         }
 
         // --- 3. MAIN LOGIC ---
@@ -339,6 +353,16 @@
 
         Promise.all([animationTask, solverTask]).then((values) => {
             const solution = values[1];
+
+            // Validate solution before accessing properties
+            if (!solution || solution.error || solution.salt === null || solution.nonce === null) {
+                console.error("Proof of work failed:", solution ? solution.error : "No solution returned");
+                // Show error to user - could redirect to error page or show message
+                document.querySelector('.subtitle').textContent = "Verification failed. Please refresh the page.";
+                document.querySelector('.subtitle').style.color = 'var(--text-muted)';
+                return;
+            }
+
             const salt = solution.salt;
             const nonce = solution.nonce;
 
@@ -347,6 +371,11 @@
                 const params = new URLSearchParams({ salt, nonce }).toString();
                 window.location.href = window.location.href + sep + params;
             }, 500);
+        }).catch((error) => {
+            // Handle any errors from solvePoW or Promise.all
+            console.error("Error during proof of work:", error);
+            document.querySelector('.subtitle').textContent = "Verification failed. Please refresh the page.";
+            document.querySelector('.subtitle').style.color = 'var(--text-muted)';
         });
     </script>
 </body>

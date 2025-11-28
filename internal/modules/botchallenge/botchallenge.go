@@ -3,6 +3,7 @@ package botchallenge
 
 import (
 	_ "embed"
+	"encoding/json"
 	"html"
 	"strconv"
 	"strings"
@@ -44,7 +45,9 @@ func (bc *BotChallenge) renderTemplate(salt string, difficulty int, reqID string
 	htmlFile := challengeHTML
 	htmlFile = strings.ReplaceAll(htmlFile, "{{COOKIE_NAME}}", html.EscapeString(bc.cfg.CookieName))
 	htmlFile = strings.ReplaceAll(htmlFile, "{{TTL}}", strconv.Itoa(int(time.Duration(bc.cfg.CookieTTL).Seconds())))
-	htmlFile = strings.ReplaceAll(htmlFile, "{{SALT}}", html.EscapeString(salt))
+	// Use JSON encoding for SALT to safely embed in JavaScript string literal
+	saltJSON, _ := json.Marshal(salt)
+	htmlFile = strings.ReplaceAll(htmlFile, "{{SALT}}", string(saltJSON))
 	htmlFile = strings.ReplaceAll(htmlFile, "{{DIFFICULTY}}", strconv.Itoa(difficulty))
 	htmlFile = strings.ReplaceAll(htmlFile, "{{REQUEST_ID}}", html.EscapeString(reqID))
 	return htmlFile
