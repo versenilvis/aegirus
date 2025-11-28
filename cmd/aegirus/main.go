@@ -33,7 +33,7 @@ func main() {
 	defer func() {
 		err := logger.Log.Sync()
 		if err != nil {
-			logger.Log.Panic("Log sync error: %v\n", zap.Error(err))
+			log.Printf("Log sync error (may be benign): %v\n", err)
 		}
 	}()
 
@@ -132,7 +132,7 @@ func main() {
 	})
 
 	// Graceful shutdown for deploy environment like Railway or Render,
-	// you will see air exixting message but you won't see it on deploy environment
+	// you will see air exiting message but you won't see it on deploy environmen
 	go func() {
 		port := utils.GetEnv("PORT", "8080")
 		if err := app.Listen(":" + port); err != nil {
