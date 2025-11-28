@@ -307,7 +307,8 @@
             const target = "0".repeat(difficulty);
 
             let nonce = 0;
-            while (true) {
+            const MAX_ITERATIONS = 100000000; // ~100M iterations; adjust based on intended difficulty range
+            while (nonce < MAX_ITERATIONS) {
                 const hash = await sha256(salt + nonce);
                 if (hash.startsWith(target)) {
                     return { salt, nonce };
