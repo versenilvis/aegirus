@@ -36,20 +36,31 @@ type BotChallenge struct {
 
 	mu       sync.Mutex
 	attempts map[string]*attemptState
+	stopCh   chan struct{}
 }
 
 func (bc *BotChallenge) cleanupLoop() {
 	ticker := time.NewTicker(5 * time.Minute)
-	for range ticker.C {
-		bc.mu.Lock()
-		now := time.Now()
-		for ip, state := range bc.attempts {
-			if now.After(state.BlockedUntil) && now.Sub(state.WindowStart) > time.Duration(bc.cfg.POWWindow)*2 {
-				delete(bc.attempts, ip)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			bc.mu.Lock()
+			now := time.Now()
+			for ip, state := range bc.attempts {
+				if now.After(state.BlockedUntil) && now.Sub(state.WindowStart) > time.Duration(bc.cfg.POWWindow)*2 {
+					delete(bc.attempts, ip)
+				}
 			}
+			bc.mu.Unlock()
+		case <-bc.stopCh:
+			return
 		}
-		bc.mu.Unlock()
 	}
+}
+
+func (bc *BotChallenge) Close() {
+	close(bc.stopCh)
 }
 
 func NewBotChallenge(cfg config.BotChallengeConfig) *BotChallenge {
@@ -77,6 +88,7 @@ func NewBotChallenge(cfg config.BotChallengeConfig) *BotChallenge {
 		pow:      NewPOW(diff),
 		htmlFile: htmlTempl,
 		attempts: make(map[string]*attemptState),
+		stopCh:   make(chan struct{}),
 	}
 	go bc.cleanupLoop()
 
