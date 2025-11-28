@@ -11,6 +11,7 @@ import (
 
 type AppConfig struct {
 	Port           string             `json:"port"`
+	AppEnv         string             `json:"app_env"`
 	TrustedProxies string             `json:"trusted_proxies"`
 	Detector       DetectorConfig     `json:"detector"`
 	RateLimiter    RateLimiterConfig  `json:"rate_limiter"`
@@ -59,6 +60,7 @@ func getEnvAsDuration(key string, defaultVal time.Duration) time.Duration {
 func LoadConfig() *AppConfig {
 	return &AppConfig{
 		Port:           utils.GetEnv("PORT", "8080"),
+		AppEnv:         utils.GetEnv("APP_ENV", "development"),
 		TrustedProxies: utils.GetEnv("TRUSTED_PROXIES", ""),
 
 		Detector: DetectorConfig{
