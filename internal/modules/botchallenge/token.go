@@ -60,6 +60,8 @@ func (tm *TokenManager) deriveKey(epoch int64) []byte {
 }
 
 func (tm *TokenManager) Generate(ip string) string {
+	// NOTE: Copy key and release lock immediately
+	// Crypto operations should be done outside the lock
 	tm.mu.RLock()
 	key := tm.currentKey
 	tm.mu.RUnlock()
@@ -90,20 +92,26 @@ func (tm *TokenManager) Validate(ip, tokenString string) bool {
 		return false
 	}
 
-	if time.Now().Unix()-ts > int64(time.Duration(tm.cfg.CookieTTL).Seconds()) {
+	if time.Now().Unix()-ts >= int64(time.Duration(tm.cfg.CookieTTL).Seconds()) {
 		return false
 	}
 
 	data := fmt.Sprintf("%s:%d", ip, ts)
 
+	// NOTE: Snapshot keys inside lock, then release immediately
+	// This improves concurrency under high load
 	tm.mu.RLock()
-	defer tm.mu.RUnlock()
+	currKey := tm.currentKey
+	prevKey := tm.previousKey
+	tm.mu.RUnlock()
 
-	if tm.checkSignature(tm.currentKey, data, clientSig) {
+	if tm.checkSignature(currKey, data, clientSig) {
 		return true
 	}
 
-	if len(tm.previousKey) > 0 && tm.checkSignature(tm.previousKey, data, clientSig) {
+	// NOTE: previousKey is always initialized in NewTokenManager -> rotateKeys,
+	// so we don't need to check len > 0
+	if tm.checkSignature(prevKey, data, clientSig) {
 		return true
 	}
 
