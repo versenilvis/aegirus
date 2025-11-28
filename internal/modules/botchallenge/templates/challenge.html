@@ -245,7 +245,7 @@
             <!-- Ray ID Wrapper with Copy Functionality -->
             <div class="ray-id-wrapper">
                 <span class="ray-label">Ray ID:</span>
-                <span class="ray-id-code" id="rayIdCode" onclick="copyRayID()">{{REQUEST_ID}}</span>
+                <span class="ray-id-code" data-ray-id="{{REQUEST_ID}}" id="rayIdCode" onclick="copyRayID()">{{REQUEST_ID}}</span>
                 <div class="copy-tooltip">Copied!</div>
             </div>
         </div>
@@ -275,7 +275,8 @@
         }
 
         function copyRayID() {
-            const rayIDText = "{{REQUEST_ID}}";
+            const codeEl = document.getElementById('rayIdCode');
+            const rayIDText = codeEl.getAttribute('data-ray-id');
 
             // Copy to clipboard
             navigator.clipboard.writeText(rayIDText).then(() => {
