@@ -2,11 +2,10 @@
 package botchallenge
 
 import (
+	"bytes"
 	_ "embed"
-	"encoding/json"
-	"html"
+	"html/template"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +17,9 @@ import (
 	"go.uber.org/zap"
 )
 
+//go:embed templates/challenge.html
+var challengeHTML string
+
 type attemptState struct {
 	Count        int
 	WindowStart  time.Time
@@ -28,6 +30,8 @@ type BotChallenge struct {
 	cfg    config.BotChallengeConfig
 	tokens *TokenManager
 	pow    *POW
+
+	htmlFile *template.Template
 
 	mu       sync.Mutex
 	attempts map[string]*attemptState
@@ -55,10 +59,17 @@ func NewBotChallenge(cfg config.BotChallengeConfig) *BotChallenge {
 	if diff > 6 {
 		diff = 6
 	}
+
+	htmlTempl, err := template.New("challenge").Parse(challengeHTML)
+	if err != nil {
+		panic(err)
+	}
+
 	bc := &BotChallenge{
 		cfg:      cfg,
 		tokens:   NewTokenManager(cfg),
 		pow:      NewPOW(diff),
+		htmlFile: htmlTempl,
 		attempts: make(map[string]*attemptState),
 	}
 	go bc.cleanupLoop()
@@ -85,7 +96,6 @@ func (bc *BotChallenge) checkRateLimit(ip string) bool {
 		return false
 	}
 
-	// SỬA: Dùng config
 	window := time.Duration(bc.cfg.POWWindow)
 	if now.Sub(state.WindowStart) > window {
 		state.Count = 1
@@ -94,7 +104,6 @@ func (bc *BotChallenge) checkRateLimit(ip string) bool {
 	}
 
 	state.Count++
-	// SỬA: Dùng config
 	if state.Count > bc.cfg.MaxPOWAttempts {
 		state.BlockedUntil = now.Add(time.Duration(bc.cfg.POWBanDuration))
 		logger.Log.Warn("PoW Rate Limit Exceeded", zap.String("ip", ip), zap.Int("attempts", state.Count))
@@ -104,18 +113,23 @@ func (bc *BotChallenge) checkRateLimit(ip string) bool {
 	return true
 }
 
-//go:embed templates/challenge.html
-var challengeHTML string
-
 func (bc *BotChallenge) renderTemplate(salt string, difficulty int, reqID string) string {
-	htmlFile := challengeHTML
-	htmlFile = strings.ReplaceAll(htmlFile, "{{COOKIE_NAME}}", html.EscapeString(bc.cfg.CookieName))
-	htmlFile = strings.ReplaceAll(htmlFile, "{{TTL}}", strconv.Itoa(int(time.Duration(bc.cfg.CookieTTL).Seconds())))
-	saltJSON, _ := json.Marshal(salt)
-	htmlFile = strings.ReplaceAll(htmlFile, "{{SALT}}", string(saltJSON))
-	htmlFile = strings.ReplaceAll(htmlFile, "{{DIFFICULTY}}", strconv.Itoa(difficulty))
-	htmlFile = strings.ReplaceAll(htmlFile, "{{REQUEST_ID}}", html.EscapeString(reqID))
-	return htmlFile
+	var buf bytes.Buffer
+
+	data := map[string]string{
+		"COOKIE_NAME": bc.cfg.CookieName,
+		"TTL":         strconv.Itoa(int(time.Duration(bc.cfg.CookieTTL).Seconds())),
+		"SALT":        salt,
+		"DIFFICULTY":  strconv.Itoa(difficulty),
+		"REQUEST_ID":  reqID,
+	}
+
+	if err := bc.htmlFile.Execute(&buf, data); err != nil {
+		logger.Log.Error("Failed to render template", zap.Error(err))
+		return "Internal Server Error"
+	}
+
+	return buf.String()
 }
 
 func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
@@ -164,7 +178,7 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 						Path:     "/",
 						SameSite: "Lax",
 						HTTPOnly: true,
-						Secure:   true,
+						Secure:   false, // WARN: SET TO TRUE ON PRODUCTION (HTTPS)
 					})
 
 					return c.Redirect().To(c.Path())
@@ -175,11 +189,13 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 		}
 	ServeChallenge:
 		c.Locals("is_challenge", true)
+
 		newSalt, err := bc.pow.GenerateSalt()
 		if err != nil {
 			logger.Log.Error("Failed to generate salt", zap.Error(err))
 			return c.Status(500).SendString("Internal Server Error")
 		}
+
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		c.Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 		return c.SendString(bc.renderTemplate(newSalt, bc.pow.Difficulty, reqID))
