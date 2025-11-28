@@ -24,7 +24,8 @@ type TokenManager struct {
 	currentKey  []byte
 	previousKey []byte
 
-	stop chan struct{}
+	stop    chan struct{}
+	stopped sync.Once
 }
 
 func NewTokenManager(cfg config.BotChallengeConfig) *TokenManager {
@@ -38,7 +39,9 @@ func NewTokenManager(cfg config.BotChallengeConfig) *TokenManager {
 }
 
 func (tm *TokenManager) Stop() {
-	close(tm.stop)
+	tm.stopped.Do(func() {
+		close(tm.stop)
+	})
 }
 
 func (tm *TokenManager) startKeyRotation() {
