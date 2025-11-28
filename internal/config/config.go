@@ -37,7 +37,7 @@ type RateLimiterConfig struct {
 
 type BotChallengeConfig struct {
 	Enabled             bool          `json:"enabled"`
-	SecretKey           string        `json:"-"`
+	SecretKey           string        `json:"-"` // sensitive infomation please use "-"
 	CookieName          string        `json:"cookie_name"`
 	CookieTTL           time.Duration `json:"cookie_ttl"`
 	KeyRotationInterval time.Duration `json:"key_rotation_interval"`
