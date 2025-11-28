@@ -344,7 +344,8 @@
 
             setTimeout(() => {
                 const sep = window.location.search ? "&" : "?";
-                window.location.href = window.location.href + sep + "salt=" + salt + "&nonce=" + nonce;
+                const params = new URLSearchParams({ salt, nonce }).toString();
+                window.location.href = window.location.href + sep + params;
             }, 500);
         });
     </script>
