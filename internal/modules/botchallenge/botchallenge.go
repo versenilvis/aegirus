@@ -7,6 +7,7 @@ import (
 	"html"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"aegirus/internal/config"
@@ -17,10 +18,33 @@ import (
 	"go.uber.org/zap"
 )
 
+type attemptState struct {
+	Count        int
+	WindowStart  time.Time
+	BlockedUntil time.Time
+}
+
 type BotChallenge struct {
 	cfg    config.BotChallengeConfig
 	tokens *TokenManager
 	pow    *POW
+
+	mu       sync.Mutex
+	attempts map[string]*attemptState
+}
+
+func (bc *BotChallenge) cleanupLoop() {
+	ticker := time.NewTicker(5 * time.Minute)
+	for range ticker.C {
+		bc.mu.Lock()
+		now := time.Now()
+		for ip, state := range bc.attempts {
+			if now.After(state.BlockedUntil) && now.Sub(state.WindowStart) > time.Duration(bc.cfg.POWWindow)*2 {
+				delete(bc.attempts, ip)
+			}
+		}
+		bc.mu.Unlock()
+	}
 }
 
 func NewBotChallenge(cfg config.BotChallengeConfig) *BotChallenge {
@@ -31,11 +55,53 @@ func NewBotChallenge(cfg config.BotChallengeConfig) *BotChallenge {
 	if diff > 6 {
 		diff = 6
 	}
-	return &BotChallenge{
-		cfg:    cfg,
-		tokens: NewTokenManager(cfg),
-		pow:    NewPOW(diff),
+	bc := &BotChallenge{
+		cfg:      cfg,
+		tokens:   NewTokenManager(cfg),
+		pow:      NewPOW(diff),
+		attempts: make(map[string]*attemptState),
 	}
+	go bc.cleanupLoop()
+
+	return bc
+}
+
+func (bc *BotChallenge) checkRateLimit(ip string) bool {
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
+
+	state, exists := bc.attempts[ip]
+	now := time.Now()
+
+	if !exists {
+		bc.attempts[ip] = &attemptState{
+			Count:       1,
+			WindowStart: now,
+		}
+		return true
+	}
+
+	if now.Before(state.BlockedUntil) {
+		return false
+	}
+
+	// SỬA: Dùng config
+	window := time.Duration(bc.cfg.POWWindow)
+	if now.Sub(state.WindowStart) > window {
+		state.Count = 1
+		state.WindowStart = now
+		return true
+	}
+
+	state.Count++
+	// SỬA: Dùng config
+	if state.Count > bc.cfg.MaxPOWAttempts {
+		state.BlockedUntil = now.Add(time.Duration(bc.cfg.POWBanDuration))
+		logger.Log.Warn("PoW Rate Limit Exceeded", zap.String("ip", ip), zap.Int("attempts", state.Count))
+		return false
+	}
+
+	return true
 }
 
 //go:embed templates/challenge.html
@@ -45,7 +111,6 @@ func (bc *BotChallenge) renderTemplate(salt string, difficulty int, reqID string
 	htmlFile := challengeHTML
 	htmlFile = strings.ReplaceAll(htmlFile, "{{COOKIE_NAME}}", html.EscapeString(bc.cfg.CookieName))
 	htmlFile = strings.ReplaceAll(htmlFile, "{{TTL}}", strconv.Itoa(int(time.Duration(bc.cfg.CookieTTL).Seconds())))
-	// Use JSON encoding for SALT to safely embed in JavaScript string literal
 	saltJSON, _ := json.Marshal(salt)
 	htmlFile = strings.ReplaceAll(htmlFile, "{{SALT}}", string(saltJSON))
 	htmlFile = strings.ReplaceAll(htmlFile, "{{DIFFICULTY}}", strconv.Itoa(difficulty))
@@ -82,6 +147,9 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 		nonceStr := c.Query("nonce")
 
 		if salt != "" && nonceStr != "" {
+			if !bc.checkRateLimit(ip) {
+				goto ServeChallenge
+			}
 			nonce, err := strconv.Atoi(nonceStr)
 			if err == nil {
 				if bc.pow.VerifyPOW(salt, nonce) {
@@ -105,6 +173,7 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 				}
 			}
 		}
+	ServeChallenge:
 		c.Locals("is_challenge", true)
 		newSalt, err := bc.pow.GenerateSalt()
 		if err != nil {
@@ -112,9 +181,7 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 			return c.Status(500).SendString("Internal Server Error")
 		}
 		c.Set("Content-Type", "text/html; charset=utf-8")
-		// Không cache trang challenge này
 		c.Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-
 		return c.SendString(bc.renderTemplate(newSalt, bc.pow.Difficulty, reqID))
 	}
 }

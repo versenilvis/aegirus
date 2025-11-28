@@ -42,6 +42,9 @@ type BotChallengeConfig struct {
 	CookieTTL           Duration `json:"cookie_ttl"`
 	KeyRotationInterval Duration `json:"key_rotation_interval"`
 	Difficulty          int      `json:"difficulty"`
+	MaxPOWAttempts      int      `json:"max_pow_attempts"`
+	POWWindow           Duration `json:"pow_window"`
+	POWBanDuration      Duration `json:"pow_ban_duration"`
 }
 
 type Duration time.Duration
@@ -94,6 +97,10 @@ func LoadConfig() *AppConfig {
 
 			KeyRotationInterval: Duration(getEnvAsDuration("BOT_CHALLENGE_KEY_ROTATION_INTERVAL", 30*time.Minute)),
 			Difficulty:          utils.GetEnvAsInt("BOT_CHALLENGE_DIFFICULTY", 3),
+
+			MaxPOWAttempts: utils.GetEnvAsInt("BOT_CHALLENGE_MAX_POW_ATTEMPTS", 10),
+			POWWindow:      Duration(getEnvAsDuration("BOT_CHALLENGE_POW_WINDOW", 1*time.Minute)),
+			POWBanDuration: Duration(getEnvAsDuration("BOT_CHALLENGE_POW_BAN_DURATION", 5*time.Minute)),
 		},
 	}
 
