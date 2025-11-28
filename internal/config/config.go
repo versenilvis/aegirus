@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"aegirus/internal/utils"
+	"aegirus/pkg/logger"
 )
 
 type AppConfig struct {
@@ -108,9 +109,13 @@ func LoadConfig() *AppConfig {
 	}
 
 	// Validate configuration
-	if cfg.BotChallenge.Enabled && cfg.BotChallenge.SecretKey == "" {
-		log.Fatal("CRITICAL ERROR: BOT_CHALLENGE_ENABLED is true but BOT_CHALLENGE_SECRET_KEY is empty. Please set a secure secret key.")
+	if cfg.BotChallenge.Enabled {
+		if cfg.BotChallenge.SecretKey == "" {
+			logger.Log.Error("CRITICAL ERROR: BOT_CHALLENGE_ENABLED is true but BOT_CHALLENGE_SECRET_KEY is empty. Please set BOT_CHALLENGE_SECRET_KEY in your .env file")
+		}
+		if len(cfg.BotChallenge.SecretKey) < 32 {
+			logger.Log.Error("CRITICAL ERROR: BOT_CHALLENGE_SECRET_KEY must be at least 32 characters long for adequate security")
+		}
 	}
-
 	return cfg
 }
