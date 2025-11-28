@@ -89,6 +89,8 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 						MaxAge:   int(time.Duration(bc.cfg.CookieTTL).Seconds()),
 						Path:     "/",
 						SameSite: "Lax",
+						HTTPOnly: true,
+						Secure:   true,
 					})
 
 					return c.Redirect().To(c.Path())
