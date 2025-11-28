@@ -18,6 +18,7 @@ type LogState struct {
 
 type SmartLogger struct {
 	logs sync.Map
+	done chan struct{}
 }
 
 func NewSmartLogger() *SmartLogger {
@@ -56,12 +57,21 @@ func (sl *SmartLogger) ShouldLog(ip string) (bool, int64) {
 }
 
 func (sl *SmartLogger) cleanupLoop() {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
 	for {
-		time.Sleep(1 * time.Minute)
+		select {
+		case <-ticker.C:
+		case <-sl.done:
+			return
+		}
 		now := time.Now()
 		sl.logs.Range(func(key, value any) bool {
 			state := value.(*LogState)
-			if now.Sub(state.LastLogTime) > 2*time.Minute {
+			state.mu.Lock()
+			lastLog := state.LastLogTime
+			state.mu.Unlock()
+			if now.Sub(lastLog) > 2*time.Minute {
 				sl.logs.Delete(key)
 			}
 			return true
