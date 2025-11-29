@@ -161,6 +161,7 @@ func main() {
 	if err := app.Shutdown(); err != nil {
 		logger.Log.Error("Error during shutdown", zap.Error(err))
 	}
+	bc.Close()
 	wg.Wait()
 	logger.Log.Info("Cleanup done")
 }
