@@ -42,6 +42,7 @@ type BotChallengeConfig struct {
 	SecretKey           string   `json:"-"` // sensitive information please use "-"
 	CookieName          string   `json:"cookie_name"`
 	CookieTTL           Duration `json:"cookie_ttl"`
+	CookieSecure        bool     `mapstructure:"cookie_secure"`
 	KeyRotationInterval Duration `json:"key_rotation_interval"`
 	Difficulty          int      `json:"difficulty"`
 	MaxPOWAttempts      int      `json:"max_pow_attempts"`
@@ -98,6 +99,8 @@ func LoadConfig() *AppConfig {
 			SecretKey:  utils.GetEnv("BOT_CHALLENGE_SECRET_KEY", ""),
 			CookieName: utils.GetEnv("BOT_CHALLENGE_COOKIE_NAME", "bot_challenge"),
 			CookieTTL:  Duration(getEnvAsDuration("BOT_CHALLENGE_COOKIE_TTL", 5*time.Minute)),
+
+			CookieSecure: utils.GetEnvAsBool("BOT_CHALLENGE_COOKIE_SECURE", true),
 
 			KeyRotationInterval: Duration(getEnvAsDuration("BOT_CHALLENGE_KEY_ROTATION_INTERVAL", 30*time.Minute)),
 			Difficulty:          utils.GetEnvAsInt("BOT_CHALLENGE_DIFFICULTY", 3),

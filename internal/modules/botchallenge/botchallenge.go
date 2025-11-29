@@ -210,7 +210,7 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 						Path:     "/",
 						SameSite: "Lax",
 						HTTPOnly: true,
-						Secure:   false, // WARN: SET TO TRUE ON PRODUCTION (HTTPS)
+						Secure:   bc.cfg.CookieSecure, // WARN: SET TO TRUE ON PRODUCTION (HTTPS)
 					})
 
 					return c.Redirect().To(c.Path())
