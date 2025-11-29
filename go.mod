@@ -1,4 +1,4 @@
-module anti-ddos
+module aegirus
 
 go 1.25.0
 

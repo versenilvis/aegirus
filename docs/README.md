@@ -1,7 +1,7 @@
 # Aegirus Docs
 
 ## Modules
- - [Rate Limits](/docs/modules/RateLimter.md)
+ - [Rate Limits](/docs/modules/RateLimiter.md)
  - [Detector](/docs/modules/Detector.md)
 
 ## For Development

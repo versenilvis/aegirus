@@ -1,14 +1,14 @@
-// Package modules - Detector & IP Blocker
-package modules
+// Package detector - Detector & IP Blocker
+package detector
 
 import (
 	"context"
 	"sync"
 	"time"
 
-	"anti-ddos/config"
-	"anti-ddos/pkg/logger"
-	"anti-ddos/utils"
+	"aegirus/internal/config"
+	"aegirus/internal/utils"
+	"aegirus/pkg/logger"
 
 	"github.com/gofiber/fiber/v3"
 	"go.uber.org/zap"
@@ -73,7 +73,7 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 		}
 
 		// WARN: Please understand this code block carefully, this can't be indispensable
-		if now.Sub(info.LastSeen) > d.cfg.ScoreDecayTime {
+		if now.Sub(info.LastSeen) > time.Duration(d.cfg.ScoreDecayTime) {
 			info.Score = 0
 		}
 
@@ -87,7 +87,7 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 		info.LastSeen = now
 
 		if info.Score >= d.cfg.BanThreshold {
-			info.BannedUntil = now.Add(d.cfg.BanDuration)
+			info.BannedUntil = now.Add(time.Duration(d.cfg.BanDuration))
 
 			logger.Log.Warn("IP Banned by Detector",
 				zap.String("ip", ip),
@@ -103,7 +103,7 @@ func (d *Detector) DetectorMiddleware() fiber.Handler {
 }
 
 func (d *Detector) Cleanup(ctx context.Context) {
-	ticker := time.NewTicker(d.cfg.CleanupTime)
+	ticker := time.NewTicker(time.Duration(d.cfg.CleanupTime))
 	defer ticker.Stop()
 
 	for {
@@ -115,7 +115,7 @@ func (d *Detector) Cleanup(ctx context.Context) {
 			now := time.Now()
 			count := 0
 			for ip, info := range d.ips {
-				if now.After(info.BannedUntil) && now.Sub(info.LastSeen) > d.cfg.CleanUpOldIPs {
+				if now.After(info.BannedUntil) && now.Sub(info.LastSeen) > time.Duration(d.cfg.CleanUpOldIPs) {
 					delete(d.ips, ip)
 					count++
 				}

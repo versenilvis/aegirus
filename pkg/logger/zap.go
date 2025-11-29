@@ -7,51 +7,42 @@ import (
 	"path/filepath"
 	"time"
 
-	"anti-ddos/utils"
+	"aegirus/internal/utils"
 
-	// z "go.uber.org/zap"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	// "go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var Log *zap.Logger
 
 func InitLogger() {
-	// sugar := z.NewExample().Sugar()
-	// sugar.Infof("Hello: %s, Age: %d", "Verse", 100)
+	env := utils.GetEnv("APP_ENV", "development")
+	isDev := env == "development"
 
-	// logger := z.NewExample()
-	// logger.Info("Hello", z.String("name", "Verse"), z.Int("age", 100))
-
-	// logger := z.NewExample()
-	// // logger.Info("Hello")
-
-	// // // Development
-	// // logger, _ = z.NewDevelopment()
-	// // logger.Info("This is Development")
-
-	// // Production
-	// logger, _ = z.NewProduction()
-	// logger.Info("This is Production")
-
-	consoleEncoder := getConsoleEncoder()
+	consoleEncoder := getConsoleEncoder(isDev)
 	fileEncoder := getFileLog()
 
 	writerFile := zapcore.AddSync(getWriterSync())
 	writerConsole := zapcore.AddSync(os.Stderr)
 
+	logLevel := zapcore.InfoLevel
+	if isDev {
+		logLevel = zapcore.DebugLevel
+	}
+
 	core := zapcore.NewTee(
 		zapcore.NewCore(fileEncoder, writerFile, zapcore.DebugLevel),
-		zapcore.NewCore(consoleEncoder, writerConsole, zapcore.DebugLevel),
+		zapcore.NewCore(consoleEncoder, writerConsole, logLevel),
 	)
 
-	Log = zap.New(core, zap.AddCaller())
+	options := []zap.Option{zap.AddCaller()}
+	if isDev {
+		options = append(options, zap.AddStacktrace(zapcore.ErrorLevel))
+	}
 
-	// Log.Info("Info log", zap.Int("line", 1))
-	// Log.Error("Error log", zap.Int("line", 2))
+	Log = zap.New(core, options...)
 }
 
 // format logs a msg
@@ -64,19 +55,23 @@ func getFileLog() zapcore.Encoder {
 	return zapcore.NewJSONEncoder(encodeConfig)
 }
 
-func getConsoleEncoder() zapcore.Encoder {
+func getConsoleEncoder(isDev bool) zapcore.Encoder {
 	encodeConfig := zapcore.EncoderConfig{
-		TimeKey:        "TIME",
-		LevelKey:       "LEVEL",
-		NameKey:        "LOGGER",
-		CallerKey:      "",
-		MessageKey:     "MSG",
-		StacktraceKey:  "STACKTRACE",
-		LineEnding:     zapcore.DefaultLineEnding,
-		EncodeLevel:    zapcore.CapitalColorLevelEncoder,
-		EncodeTime:     customTimeEncoder,
-		EncodeDuration: zapcore.SecondsDurationEncoder,
-		EncodeCaller:   nil,
+		TimeKey:          "TIME",
+		LevelKey:         "LEVEL",
+		NameKey:          "LOGGER",
+		MessageKey:       "MSG",
+		StacktraceKey:    "STACKTRACE",
+		LineEnding:       zapcore.DefaultLineEnding,
+		EncodeLevel:      zapcore.CapitalColorLevelEncoder,
+		EncodeTime:       customTimeEncoder,
+		EncodeDuration:   zapcore.SecondsDurationEncoder,
+		ConsoleSeparator: " | ",
+	}
+	if isDev {
+		encodeConfig.StacktraceKey = "S"
+	} else {
+		encodeConfig.StacktraceKey = ""
 	}
 	return zapcore.NewConsoleEncoder(encodeConfig)
 }
