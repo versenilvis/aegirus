@@ -135,7 +135,11 @@ func (bc *BotChallenge) renderTemplate(salt string, difficulty int, reqID string
 	var buf bytes.Buffer
 
 	// JSON-encode SALT to safely embed in JavaScript string literal
-	saltJSON, _ := json.Marshal(salt)
+	saltJSON, err := json.Marshal(salt)
+	if err != nil {
+		logger.Log.Error("Failed to marshal salt to JSON", zap.Error(err))
+		return "Internal Server Error"
+	}
 
 	data := map[string]string{
 		"COOKIE_NAME": bc.cfg.CookieName,
