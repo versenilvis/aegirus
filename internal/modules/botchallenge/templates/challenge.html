@@ -328,12 +328,8 @@
             const TIMEOUT_MS = options.timeoutMs || 30000; // 30 seconds default
             const startTime = Date.now();
 
-            let salt;
-            try {
-                salt = JSON.parse({{.SALT | js}});
-            } catch (e) {
-                throw new Error("Invalid salt format: " + e.message);
-            }
+            // SALT is already JSON-encoded and safe to use directly as JavaScript string literal
+            const salt = {{.SALT | js}};
 
             // Parse and validate difficulty
             const difficultyRaw = parseInt('{{.DIFFICULTY}}', 10);

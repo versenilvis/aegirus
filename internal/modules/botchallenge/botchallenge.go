@@ -81,6 +81,8 @@ func NewBotChallenge(cfg config.BotChallengeConfig) *BotChallenge {
 
 	htmlTempl := template.New("challenge").Funcs(template.FuncMap{
 		"js": func(s string) template.JS {
+			// s is already a JSON-encoded string (e.g., "abc123")
+			// Return it as-is for JavaScript parsing
 			return template.JS(s)
 		},
 	})
