@@ -5,11 +5,16 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log"
 )
 
 func GenerateID() string {
 	b := make([]byte, 8)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		log.Printf("failed to generate random ID: %v", err)
+		return ""
+	}
+
 	return hex.EncodeToString(b)
 }
 
