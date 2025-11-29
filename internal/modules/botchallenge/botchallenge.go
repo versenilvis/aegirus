@@ -37,6 +37,8 @@ type BotChallenge struct {
 	mu       sync.Mutex
 	attempts map[string]*attemptState
 	stopCh   chan struct{}
+
+	closeOnce sync.Once
 }
 
 func (bc *BotChallenge) cleanupLoop() {
@@ -60,7 +62,12 @@ func (bc *BotChallenge) cleanupLoop() {
 }
 
 func (bc *BotChallenge) Close() {
-	close(bc.stopCh)
+	bc.closeOnce.Do(func() {
+		if bc.tokens != nil {
+			bc.tokens.Stop()
+		}
+		close(bc.stopCh)
+	})
 }
 
 func NewBotChallenge(cfg config.BotChallengeConfig) *BotChallenge {
