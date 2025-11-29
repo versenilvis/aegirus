@@ -274,14 +274,13 @@
             updateProgress();
         }
 
+        const codeEl = document.getElementById('rayIdCode');
         function copyRayID() {
-            const codeEl = document.getElementById('rayIdCode').addEventListener('click', copyRayID);
             const rayIDText = codeEl.getAttribute('data-ray-id');
 
             // Copy to clipboard
             navigator.clipboard.writeText(rayIDText).then(() => {
                 // Show tooltip by adding class to the CODE element
-                const codeEl = document.getElementById('rayIdCode').addEventListener('click', copyRayID);
                 codeEl.classList.add('copied');
 
                 // Hide tooltip after 2s
@@ -291,6 +290,10 @@
             }).catch(err => {
                 console.error('Failed to copy: ', err);
             });
+        }
+
+        if (codeEl) {
+            codeEl.addEventListener('click', copyRayID);
         }
 
         // --- 2. CRYPTO FUNCTIONS (PoW) ---
@@ -303,7 +306,7 @@
 
         /**
          * Solve Proof of Work challenge
-         * 
+         *
          * Expected solve times per difficulty (approximate):
          * - difficulty 0: Instant (no hash check required)
          * - difficulty 1: ~16 attempts (2^4)
@@ -312,9 +315,9 @@
          * - difficulty 4: ~65,536 attempts (2^16)
          * - difficulty 5: ~1,048,576 attempts (2^20)
          * - difficulty 6: ~16,777,216 attempts (2^24)
-         * 
+         *
          * Note: difficulty=0 is allowed and results in instant success (any hash matches)
-         * 
+         *
          * @param {Object} options - Configuration options
          * @param {number} options.maxIterations - Maximum iterations before giving up (default: 100000000)
          * @param {number} options.timeoutMs - Maximum time in milliseconds before giving up (default: 30000)
@@ -335,7 +338,7 @@
             // Parse and validate difficulty
             const difficultyRaw = parseInt('{{.DIFFICULTY}}', 10);
             let difficulty;
-            
+
             if (!Number.isFinite(difficultyRaw) || !Number.isInteger(difficultyRaw) || difficultyRaw < 0 || difficultyRaw > 10) {
                 console.error("Invalid difficulty value:", difficultyRaw);
                 // Use safe default and continue (don't throw)
@@ -356,10 +359,10 @@
             while (nonce < MAX_ITERATIONS) {
                 // Check timeout
                 if (Date.now() - startTime > TIMEOUT_MS) {
-                    return { 
-                        salt: null, 
-                        nonce: null, 
-                        error: `Proof of work timeout exceeded (${TIMEOUT_MS}ms). Please try again.` 
+                    return {
+                        salt: null,
+                        nonce: null,
+                        error: `Proof of work timeout exceeded (${TIMEOUT_MS}ms). Please try again.`
                     };
                 }
 
@@ -371,10 +374,10 @@
                 if (nonce % 2000 === 0) await new Promise(r => setTimeout(r, 0));
             }
 
-            return { 
-                salt: null, 
-                nonce: null, 
-                error: `Proof of work solution not found within maximum iterations (${MAX_ITERATIONS}). Please try again.` 
+            return {
+                salt: null,
+                nonce: null,
+                error: `Proof of work solution not found within maximum iterations (${MAX_ITERATIONS}). Please try again.`
             };
         }
 
@@ -396,7 +399,7 @@
             try {
                 const computedStyle = getComputedStyle(document.documentElement);
                 const cssVarValue = computedStyle.getPropertyValue('--text-muted').trim();
-                
+
                 if (cssVarValue) {
                     subtitle.style.color = cssVarValue;
                 } else {
