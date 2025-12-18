@@ -27,10 +27,12 @@ type Detector struct {
 }
 
 func NewDetector(cfg config.DetectorConfig) *Detector {
-	return &Detector{
+	d := &Detector{
 		ips: make(map[string]*Suspicious),
 		cfg: cfg,
 	}
+	go d.Cleanup(context.Background())
+	return d
 }
 
 func (d *Detector) DetectorMiddleware() fiber.Handler {
