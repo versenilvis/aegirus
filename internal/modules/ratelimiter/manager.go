@@ -52,7 +52,7 @@ func NewManager(cfg config.RateLimiterConfig, b IPBanner, rdb *redis.Client) *Ma
 	}
 }
 
-func (m *Manager) RateLimitMiddleware() fiber.Handler {
+func (m *Manager) RateLimiterMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
 		ip := utils.GetRealIP(c)
 		path := c.Path()

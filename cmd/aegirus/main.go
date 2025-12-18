@@ -18,6 +18,8 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
+
 	"go.uber.org/zap"
 )
 
@@ -49,22 +51,28 @@ func main() {
 
 	app := fiber.New()
 
+	var rdb *redis.Client
+	if cfg.Redis.Addr != "" {
+		rdb = redis.NewClient(&redis.Options{
+			Addr:     cfg.Redis.Addr,
+			Password: cfg.Redis.Password,
+			DB:       cfg.Redis.DB,
+		})
+		// Ping thử
+		if err := rdb.Ping(context.Background()).Err(); err != nil {
+			logger.Log.Error("Cannot connect to Redis, fallback to Memory", zap.Error(err))
+			rdb = nil // Gán nil để Manager tự chuyển về Memory
+		}
+	}
+
 	d := detector.NewDetector(cfg.Detector)
-	rl := ratelimiter.NewRateLimiter(cfg.RateLimiter, d)
+	rl := ratelimiter.NewManager(cfg.RateLimiter, d, rdb)
 	bc := botchallenge.NewBotChallenge(cfg.BotChallenge)
 
 	smartLog := utils.NewSmartLogger()
 	var wg sync.WaitGroup
-	ctx, cancel := context.WithCancel(context.Background())
+	_, cancel := context.WithCancel(context.Background())
 	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		rl.Cleanup(ctx)
-	}()
-	go func() {
-		defer wg.Done()
-		d.Cleanup(ctx)
-	}()
 
 	app.Use(func(c fiber.Ctx) error {
 		reqID := utils.GenerateRayID()
