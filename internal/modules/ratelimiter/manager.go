@@ -67,7 +67,6 @@ func (m *Manager) RateLimitMiddleware() fiber.Handler {
 		}
 
 		if !allowed {
-			// Logic Ban IP và Log
 			logger.Log.Warn("Rate limit exceeded", zap.String("ip", ip), zap.String("path", path))
 
 			if m.banip != nil {
