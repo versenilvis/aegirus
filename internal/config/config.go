@@ -34,6 +34,10 @@ type RateLimiterConfig struct {
 	BanDuration     Duration `json:"ban_duration"`
 	CleanupInterval Duration `json:"cleanup_interval"`
 	ClientTTL       Duration `json:"client_ttl"`
+
+	RedisAddr string `mapstructure:"redis_addr"`
+	RedisPass string `mapstructure:"redis_pass"`
+	RedisDB   int    `mapstructure:"redis_db"`
 }
 
 type BotChallengeConfig struct {
