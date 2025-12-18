@@ -17,6 +17,7 @@ type AppConfig struct {
 	Detector        DetectorConfig     `json:"detector"`
 	RateLimiter     RateLimiterConfig  `json:"rate_limiter"`
 	BotChallenge    BotChallengeConfig `json:"bot_challenge"`
+	Redis           RedisConfig        `json:"redis_config"`
 }
 
 type DetectorConfig struct {
@@ -35,10 +36,6 @@ type RateLimiterConfig struct {
 	BanDuration     Duration `json:"ban_duration"`
 	CleanupInterval Duration `json:"cleanup_interval"`
 	ClientTTL       Duration `json:"client_ttl"`
-
-	RedisAddr string `mapstructure:"redis_addr"`
-	RedisPass string `mapstructure:"redis_pass"`
-	RedisDB   int    `mapstructure:"redis_db"`
 }
 
 type BotChallengeConfig struct {
@@ -52,6 +49,12 @@ type BotChallengeConfig struct {
 	MaxPOWAttempts      int      `json:"max_pow_attempts"`
 	POWWindow           Duration `json:"pow_window"`
 	POWBanDuration      Duration `json:"pow_ban_duration"`
+}
+
+type RedisConfig struct {
+	Addr     string `json:"addr"`
+	Password string `json:"password"`
+	DB       int    `json:"db"`
 }
 
 type Duration time.Duration
@@ -112,6 +115,12 @@ func LoadConfig() *AppConfig {
 			MaxPOWAttempts: utils.GetEnvAsInt("BOT_CHALLENGE_MAX_POW_ATTEMPTS", 10),
 			POWWindow:      Duration(getEnvAsDuration("BOT_CHALLENGE_POW_WINDOW", 1*time.Minute)),
 			POWBanDuration: Duration(getEnvAsDuration("BOT_CHALLENGE_POW_BAN_DURATION", 5*time.Minute)),
+		},
+
+		Redis: RedisConfig{
+			Addr:     utils.GetEnv("REDIS_ADDR", ""),
+			Password: utils.GetEnv("REDIS_PASS", ""),
+			DB:       utils.GetEnvAsInt("REDIS_DB", 0),
 		},
 	}
 
