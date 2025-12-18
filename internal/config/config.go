@@ -29,8 +29,9 @@ type DetectorConfig struct {
 }
 
 type RateLimiterConfig struct {
-	Burst           int      `json:"burst"`
-	RefillRate      float64  `json:"refill_rate"`
+	Rate           int      `json:"rate"`
+	WindowDuration Duration `json:"window_duration"`
+
 	BanDuration     Duration `json:"ban_duration"`
 	CleanupInterval Duration `json:"cleanup_interval"`
 	ClientTTL       Duration `json:"client_ttl"`
@@ -90,8 +91,8 @@ func LoadConfig() *AppConfig {
 		},
 
 		RateLimiter: RateLimiterConfig{
-			Burst:           utils.GetEnvAsInt("RATE_LIMIT_BURST", 50),
-			RefillRate:      utils.GetEnvAsFloat("RATE_LIMIT_REFILL_RATE", 10.0),
+			Rate:            utils.GetEnvAsInt("RATE_LIMIT_RATE", 10),
+			WindowDuration:  Duration(getEnvAsDuration("RATE_LIMIT_WINDOW_DURATION", 1*time.Minute)),
 			BanDuration:     Duration(getEnvAsDuration("RATE_LIMIT_BAN_DURATION", 5*time.Minute)),
 			CleanupInterval: Duration(getEnvAsDuration("RATE_LIMIT_CLEANUP_INTERVAL", 1*time.Minute)),
 			ClientTTL:       Duration(getEnvAsDuration("RATE_LIMIT_CLIENT_TTL", 3*time.Minute)),
