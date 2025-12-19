@@ -17,7 +17,7 @@ func NewRedisStrategy(client *redis.Client) *RedisStrategy {
 	}
 }
 
-func (r *RedisStrategy) Allow(ctx context.Context, key string, limit int, windows time.Duration) (bool, error) {
+func (r *RedisStrategy) Allow(ctx context.Context, key string, limit int, window time.Duration) (bool, error) {
 	// sliding window counter
 	script := `
 	local current_count = tonumber(redis.call('GET', KEYS[1]) or "0")
@@ -36,9 +36,13 @@ func (r *RedisStrategy) Allow(ctx context.Context, key string, limit int, window
 	end
 	`
 	now := time.Now().UnixNano()
-	windowsNano := windows.Nanoseconds()
+	windowNano := window.Nanoseconds()
 
-	status, err := r.client.Eval(ctx, script, []string{key}, windowsNano, now).Int()
+	status, err := r.client.Eval(ctx, script, []string{key},
+		int64(windowNano),
+		int(limit),
+		int64(now),
+	).Int()
 	if err != nil {
 		return false, err
 	}
