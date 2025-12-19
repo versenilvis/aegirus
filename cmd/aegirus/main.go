@@ -53,15 +53,19 @@ func main() {
 
 	var rdb *redis.Client
 	if cfg.Redis.Addr != "" {
-		rdb = redis.NewClient(&redis.Options{
-			Addr:     cfg.Redis.Addr,
-			Password: cfg.Redis.Password,
-			DB:       cfg.Redis.DB,
-		})
-		// Ping thử
+		opt, err := redis.ParseURL(cfg.Redis.Addr)
+		if err != nil {
+			opt = &redis.Options{
+				Addr:     cfg.Redis.Addr,
+				Password: cfg.Redis.Password,
+				DB:       cfg.Redis.DB,
+			}
+		}
+		rdb = redis.NewClient(opt)
+
 		if err := rdb.Ping(context.Background()).Err(); err != nil {
 			logger.Log.Error("Cannot connect to Redis, fallback to Memory", zap.Error(err))
-			rdb = nil // Gán nil để Manager tự chuyển về Memory
+			rdb = nil
 		}
 	}
 
