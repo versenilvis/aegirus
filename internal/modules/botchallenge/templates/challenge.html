@@ -252,6 +252,14 @@
     </div>
 
     <script>
+        (function cleanUrl() {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('salt') || url.searchParams.has('nonce')) {
+            url.searchParams.delete('salt');
+            url.searchParams.delete('nonce');
+            window.history.replaceState({}, document.title, url.pathname + url.search);
+        }
+    })();
         // --- 1. UI HELPER FUNCTIONS ---
         const steps = ['step1', 'step2', 'step3'];
         const progressFill = document.getElementById('progressFill');
