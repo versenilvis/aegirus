@@ -170,6 +170,7 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
 		path := c.Path()
 		if utils.IsStaticAsset(path) {
+			c.Set("Cache-Control", "public, max-age=86400")
 			return c.Next()
 		}
 		if !bc.cfg.Enabled {
@@ -219,6 +220,8 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 						Secure:   bc.cfg.CookieSecure, // WARN: SET TO TRUE ON PRODUCTION (HTTPS)
 					})
 
+					// make sure cloudflare cache is disabled
+					c.Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0")
 					return c.Redirect().To(c.Path())
 				} else {
 					logger.Log.Warn("POW Verification Failed", zap.String("ip", ip))
@@ -227,7 +230,10 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 		}
 	ServeChallenge:
 		c.Locals("is_challenge", true)
-
+		// make sure cloudflare cache is disabled
+		c.Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0")
+		c.Set("Pragma", "no-cache")
+		c.Set("Expires", "0")
 		newSalt, err := bc.pow.GenerateSalt()
 		if err != nil {
 			logger.Log.Error("Failed to generate salt", zap.Error(err))
