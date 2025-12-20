@@ -1,6 +1,7 @@
 package ratelimiter
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -27,9 +28,12 @@ type Manager struct {
 	strategy Strategy
 	cfg      config.RateLimiterConfig
 	banip    IPBanner
+	ctx      context.Context
+	cancel   context.CancelFunc
 }
 
 func NewManager(cfg config.RateLimiterConfig, b IPBanner, rdb *redis.Client) *Manager {
+	ctx, cancel := context.WithCancel(context.Background())
 	var strg Strategy
 
 	if rdb != nil {
@@ -39,6 +43,7 @@ func NewManager(cfg config.RateLimiterConfig, b IPBanner, rdb *redis.Client) *Ma
 		logger.Log.Info("Using memory for rate limiter")
 		mem := NewMemoryStrategy()
 		go mem.CleanupRoutine(
+			ctx,
 			time.Duration(cfg.CleanupInterval),
 			time.Duration(cfg.ClientTTL),
 		)
@@ -49,6 +54,8 @@ func NewManager(cfg config.RateLimiterConfig, b IPBanner, rdb *redis.Client) *Ma
 		strategy: strg,
 		cfg:      cfg,
 		banip:    b,
+		ctx:      ctx,
+		cancel:   cancel,
 	}
 }
 
@@ -80,5 +87,11 @@ func (m *Manager) RateLimiterMiddleware() fiber.Handler {
 		}
 
 		return c.Next()
+	}
+}
+
+func (m *Manager) Shutdown() {
+	if m.cancel != nil {
+		m.cancel()
 	}
 }

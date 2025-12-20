@@ -44,16 +44,23 @@ func (m *MemoryStrategy) Allow(ctx context.Context, key string, limit int, windo
 	return client.limiter.Allow(), nil
 }
 
-func (m *MemoryStrategy) CleanupRoutine(interval, ttl time.Duration) {
+func (m *MemoryStrategy) CleanupRoutine(ctx context.Context, interval, ttl time.Duration) {
 	ticker := time.NewTicker(time.Duration(interval))
-	for range ticker.C {
-		m.mu.Lock()
-		now := time.Now().UnixNano()
-		for key, client := range m.clients {
-			if time.Duration(now-client.lastSeen) > ttl {
-				delete(m.clients, key)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			m.mu.Lock()
+			now := time.Now().UnixNano()
+			for key, client := range m.clients {
+				if time.Duration(now-client.lastSeen) > ttl {
+					delete(m.clients, key)
+				}
 			}
+			m.mu.Unlock()
 		}
-		m.mu.Unlock()
 	}
 }
