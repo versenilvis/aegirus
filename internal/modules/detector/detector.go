@@ -21,17 +21,20 @@ type Suspicious struct {
 }
 
 type Detector struct {
-	ips map[string]*Suspicious
-	mu  sync.RWMutex
-	cfg config.DetectorConfig
+	ips    map[string]*Suspicious
+	mu     sync.RWMutex
+	cfg    config.DetectorConfig
+	cancel context.CancelFunc
 }
 
 func NewDetector(cfg config.DetectorConfig) *Detector {
+	ctx, cancel := context.WithCancel(context.Background())
 	d := &Detector{
-		ips: make(map[string]*Suspicious),
-		cfg: cfg,
+		ips:    make(map[string]*Suspicious),
+		cfg:    cfg,
+		cancel: cancel,
 	}
-	go d.Cleanup(context.Background())
+	go d.Cleanup(ctx)
 	return d
 }
 
