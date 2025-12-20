@@ -193,6 +193,13 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 		cookie := c.Cookies(bc.cfg.CookieName)
 
 		if bc.tokens.Validate(ip, cookie) {
+			if c.Query("salt") != "" || c.Query("nonce") != "" {
+				return c.Redirect().To(c.Path())
+			}
+			return c.Next()
+		}
+
+		if bc.tokens.Validate(ip, cookie) {
 			return c.Next()
 		}
 
