@@ -53,7 +53,7 @@ type BotChallengeConfig struct {
 
 type RedisConfig struct {
 	Addr     string `json:"addr"`
-	Password string `json:"password"`
+	Password string `json:"-"` // sensitive information please use "-"
 	DB       int    `json:"db"`
 }
 
