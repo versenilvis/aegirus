@@ -168,6 +168,10 @@ func (bc *BotChallenge) renderTemplate(salt string, difficulty int, reqID string
 
 func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
+		path := c.Path()
+		if utils.IsStaticAsset(path) {
+			return c.Next()
+		}
 		if !bc.cfg.Enabled {
 			return c.Next()
 		}
