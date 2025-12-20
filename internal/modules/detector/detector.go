@@ -38,6 +38,12 @@ func NewDetector(cfg config.DetectorConfig) *Detector {
 	return d
 }
 
+func (d *Detector) Stop() {
+	if d.cancel != nil {
+		d.cancel()
+	}
+}
+
 func (d *Detector) DetectorMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
 		ip := utils.GetRealIP(c)
@@ -116,18 +122,24 @@ func (d *Detector) Cleanup(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			d.mu.Lock()
 			now := time.Now()
-			count := 0
+			ipsToDelete := make([]string, 0)
+
+			d.mu.RLock()
 			for ip, info := range d.ips {
 				if now.After(info.BannedUntil) && now.Sub(info.LastSeen) > time.Duration(d.cfg.CleanUpOldIPs) {
-					delete(d.ips, ip)
-					count++
+					ipsToDelete = append(ipsToDelete, ip)
 				}
 			}
-			d.mu.Unlock()
-			if count > 0 {
-				logger.Log.Info("Detector cleanup finished", zap.Int("removed_ips", count))
+			d.mu.RUnlock()
+
+			if len(ipsToDelete) > 0 {
+				d.mu.Lock()
+				for _, ip := range ipsToDelete {
+					delete(d.ips, ip)
+				}
+				d.mu.Unlock()
+				logger.Log.Info("Detector cleanup finished", zap.Int("removed_ips", len(ipsToDelete)))
 			}
 		}
 	}
