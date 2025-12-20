@@ -5,11 +5,6 @@ RUN apk add --no-cache git ca-certificates
 WORKDIR /app
 
 COPY go.mod go.sum ./
-RUN go mod download
-
-COPY . .
-
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o main ./cmd/aegirus/main.go
 
 # https://docs.railway.com/guides/dockerfiles#cache-mounts
 # IMPORTANT: for e.g like the link of your service is
