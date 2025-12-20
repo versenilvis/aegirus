@@ -194,12 +194,9 @@ func (bc *BotChallenge) BotChallengeMiddleware() fiber.Handler {
 
 		if bc.tokens.Validate(ip, cookie) {
 			if c.Query("salt") != "" || c.Query("nonce") != "" {
+				c.Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 				return c.Redirect().To(c.Path())
 			}
-			return c.Next()
-		}
-
-		if bc.tokens.Validate(ip, cookie) {
 			return c.Next()
 		}
 
