@@ -48,7 +48,6 @@ func (m *MemoryStrategy) Allow(ctx context.Context, key string, limit int, windo
 					entries = append(entries, clientEntry{key: k, lastSeen: c.lastSeen})
 				}
 
-
 				for i := 0; i < len(entries) && len(m.clients) > targetSize; i++ {
 					oldestIdx := i
 					for j := i + 1; j < len(entries); j++ {
@@ -88,14 +87,23 @@ func (m *MemoryStrategy) CleanupRoutine(ctx context.Context, interval, ttl time.
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			m.mu.Lock()
+			m.mu.RLock()
 			now := time.Now().UnixNano()
+			expiredKeys := make([]string, 0)
 			for key, client := range m.clients {
 				if time.Duration(now-client.lastSeen) > ttl {
-					delete(m.clients, key)
+					expiredKeys = append(expiredKeys, key)
 				}
 			}
-			m.mu.Unlock()
+			m.mu.RUnlock()
+
+			if len(expiredKeys) > 0 {
+				m.mu.Lock()
+				for _, key := range expiredKeys {
+					delete(m.clients, key)
+				}
+				m.mu.Unlock()
+			}
 		}
 	}
 }
