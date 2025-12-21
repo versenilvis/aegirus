@@ -6,11 +6,9 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	"aegirus/internal/config"
-	"aegirus/internal/modules/botchallenge"
 	"aegirus/internal/modules/detector"
 	"aegirus/internal/modules/ratelimiter"
 	"aegirus/internal/utils"
@@ -46,7 +44,6 @@ func main() {
 		zap.String("trusted_proxies", cfg.TrustedProxies),
 		zap.Any("detector", cfg.Detector),
 		zap.Any("rate_limiter", cfg.RateLimiter),
-		zap.Any("bot_challenge", cfg.BotChallenge),
 	)
 
 	app := fiber.New()
@@ -71,14 +68,13 @@ func main() {
 
 	d := detector.NewDetector(cfg.Detector)
 	rl := ratelimiter.NewManager(cfg.RateLimiter, d, rdb)
-	bc := botchallenge.NewBotChallenge(cfg.BotChallenge)
 
 	smartLog := utils.NewSmartLogger()
-	var wg sync.WaitGroup
+	// var wg sync.WaitGroup
 	_, cancel := context.WithCancel(context.Background())
-	wg.Add(2)
+	// wg.Add(2)
 
-	app.Use(func(c fiber.Ctx) error {
+	app.Use(app.Use(func(c fiber.Ctx) error {
 		reqID := utils.GenerateRayID()
 
 		c.Locals("requestid", reqID)
@@ -86,28 +82,9 @@ func main() {
 
 		err := c.Next()
 
-		// WARN: REMEMBER TO REMOVE TRUSTED_PROXIES VARIABLE IN YOUR .env IF YOU ARE USING YOUR VPS/LOCAL MACHINE,
-		// BUT IF YOU ARE USING RAILWAY, RENDER, SSH TUNNEL OR NGINX,... OR ANY 3RD PARTY SERVICE SET IT TO TRUE IF YOUR SERVICE IS RUNNING
 		ip := utils.GetRealIP(c)
 		status := c.Response().StatusCode()
-		isChallenge, _ := c.Locals("is_challenge").(bool)
-		if isChallenge {
-			shouldLog, count := smartLog.ShouldLog(ip)
 
-			if shouldLog {
-				msg := "Bot Challenge Triggered"
-				if count > 1 {
-					msg = "Bot Challenge Flood (Throttled)"
-				}
-				logger.Log.Info(msg,
-					zap.String("req_id", reqID),
-					zap.String("ip", ip),
-					zap.String("action", "serving_html_pow"),
-					zap.Int64("recent_count", count),
-				)
-			}
-			return err
-		}
 		if status == 403 || status == 429 {
 			shouldLog, count := smartLog.ShouldLog(ip)
 
@@ -125,25 +102,22 @@ func main() {
 			}
 			return err
 		}
-		// NOTE: set LOG_SAMPLING_RATE=100 in .env -> All log (Debug or development but not recommended)
-		// set LOG_SAMPLING_RATE=10 (or 5) in .env -> 10% log (Production)
-		// set LOG_SAMPLING_RATE=0 in .env -> 0% log (While being ddos, save I/O)
+
 		if rand.Intn(100) < cfg.LogSamplingRate {
 			logger.Log.Info("Request passed",
 				zap.String("req_id", reqID),
 				zap.String("ip", ip),
 				zap.String("path", c.Path()),
-				zap.String("HEADER_XFF", c.Get("X-Forwarded-For")), // just for debug in logs
+				zap.String("HEADER_XFF", c.Get("X-Forwarded-For")),
 				zap.String("method", c.Method()),
 				zap.Int("status", status),
 				zap.String("user_agent", c.Get("User-Agent")),
 			)
 		}
 		return err
-	})
+	}))
 
 	app.Use(d.DetectorMiddleware())
-	app.Use(bc.BotChallengeMiddleware())
 	app.Use(rl.RateLimiterMiddleware())
 
 	app.Get("/", func(c fiber.Ctx) error {
@@ -173,7 +147,6 @@ func main() {
 	if err := app.Shutdown(); err != nil {
 		logger.Log.Error("Error during shutdown", zap.Error(err))
 	}
-	bc.Close()
-	wg.Wait()
+	// wg.Wait()
 	logger.Log.Info("Cleanup done")
 }
