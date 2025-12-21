@@ -4,8 +4,11 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
+	"aegirus/internal/modules/upstream"
 	"aegirus/internal/utils"
 )
 
@@ -17,6 +20,7 @@ type AppConfig struct {
 	Detector        DetectorConfig    `json:"detector"`
 	RateLimiter     RateLimiterConfig `json:"rate_limiter"`
 	Redis           RedisConfig       `json:"redis_config"`
+	Upstreams       []upstream.Target `json:"upstreams"`
 }
 
 type DetectorConfig struct {
@@ -62,6 +66,50 @@ func getEnvAsDuration(key string, defaultVal time.Duration) time.Duration {
 	return duration
 }
 
+func parseUpstreamTargets(envVal string) []upstream.Target {
+	if envVal == "" {
+		return nil
+	}
+
+	var targets []upstream.Target
+	parts := strings.Split(envVal, ",")
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+
+		// Format: "addr|weight" or just "addr" (default weight 1)
+		// Use pipe separator to avoid conflicts with URL colons (e.g., http://host:port)
+		pipeIdx := strings.LastIndex(part, "|")
+		if pipeIdx == -1 {
+			// No pipe found, use default weight of 1
+			targets = append(targets, upstream.Target{
+				Addr:   part,
+				Weight: 1,
+			})
+			continue
+		}
+
+		possibleWeight := part[pipeIdx+1:]
+		if weight, err := strconv.Atoi(possibleWeight); err == nil && weight > 0 {
+			addr := part[:pipeIdx]
+			targets = append(targets, upstream.Target{
+				Addr:   addr,
+				Weight: weight,
+			})
+		} else {
+			targets = append(targets, upstream.Target{
+				Addr:   part,
+				Weight: 1,
+			})
+		}
+	}
+
+	return targets
+}
+
 func LoadConfig() *AppConfig {
 	cfg := &AppConfig{
 		Port:           utils.GetEnv("PORT", "8080"),
@@ -92,6 +140,8 @@ func LoadConfig() *AppConfig {
 			Password: utils.GetEnv("REDIS_PASS", ""),
 			DB:       utils.GetEnvAsInt("REDIS_DB", 0),
 		},
+
+		Upstreams: parseUpstreamTargets(utils.GetEnv("UPSTREAM_TARGETS", "")),
 	}
 
 	return cfg

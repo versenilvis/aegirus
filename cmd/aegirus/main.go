@@ -68,14 +68,13 @@ func main() {
 		}
 	}
 
-	targets := []upstream.Target{
-		{Addr: "http://127.0.0.1:3001", Weight: 3}, // Server A
-		{Addr: "http://127.0.0.1:3002", Weight: 1}, // Server B
-	}
-
-	testService, err := upstream.NewUpstream("local-test", targets)
-	if err != nil {
-		logger.Log.Panic("Init upstream failed", zap.Error(err))
+	var testService *upstream.Upstream
+	if len(cfg.Upstreams) > 0 {
+		var err error
+		testService, err = upstream.NewUpstream("upstream-service", cfg.Upstreams)
+		if err != nil {
+			logger.Log.Fatal("Init upstream failed", zap.Error(err))
+		}
 	}
 
 	d := detector.NewDetector(cfg.Detector)
@@ -145,10 +144,10 @@ func main() {
 		return c.SendString("Request successful")
 	})
 
-	// run mock server first then run main server
-	// try to test with: curl localhost:8080/whateverroute, just dont be / or /api/test
-	// you will see it calls A 3 times and B 1 time
-	app.All("/*", testService.ProxyMiddleware())
+	// Proxy to upstream servers if configured
+	if testService != nil {
+		app.All("/*", testService.ProxyMiddleware())
+	}
 
 	// Graceful shutdown for deploy environment like Railway or Render,
 	// you will see air exiting message but you won't see it on deploy environment
