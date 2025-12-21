@@ -119,17 +119,29 @@ func (rb *RoundRobinBalancer) Next() *Server {
 	if len(rb.servers) == 0 {
 		return nil
 	}
+
+	// First pass: try to find an alive server
 	for i := 0; i < len(rb.servers); i++ {
-
 		current := atomic.AddUint64(&rb.counter, 1)
-		// current return the current value like 1, but in arr, index start from 0, so we need to minus 1
 		index := (current - 1) % uint64(len(rb.servers))
-
 		server := rb.servers[index]
-		// passive check, return if server is alive
+
 		if server.IsAlive() {
 			return server
 		}
 	}
+
+	// Second pass: if no alive servers, allow servers in cooldown to be tried
+	// This gives dead servers a chance to prove they're back up
+	if len(rb.servers) > 0 {
+		current := atomic.AddUint64(&rb.counter, 1)
+		index := (current - 1) % uint64(len(rb.servers))
+		server := rb.servers[index]
+
+		// Even if in cooldown, allow it to be tried (passive health check)
+		// If it's actually up, MarkAlive() will reset the cooldown
+		return server
+	}
+
 	return nil
 }

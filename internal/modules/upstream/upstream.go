@@ -13,21 +13,25 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	ProxyTimeout = 10 * time.Second
+)
+
 type Upstream struct {
 	Name string
 	LB   *RoundRobinBalancer
 }
 
 var proxyClient = &fasthttp.Client{
-	ReadTimeout:                   10 * time.Second, // wait 10 secs before marking server as dead
-	WriteTimeout:                  10 * time.Second, // max timeout for aegirus to send data to the main servers
+	ReadTimeout:                   ProxyTimeout,     // wait before marking server as dead
+	WriteTimeout:                  ProxyTimeout,     // max timeout for aegirus to send data to the main servers
 	MaxConnsPerHost:               2000,             // to prevent DDoS
 	MaxIdleConnDuration:           90 * time.Second, // no need to create tcp handshake again, in 90s next request will use old connection
 	MaxIdemponentCallAttempts:     5,                // max 5 attempts to send request to the same server
 	ReadBufferSize:                4096,
 	WriteBufferSize:               4096,
 	MaxResponseBodySize:           100 * 1024 * 1024, // max response body size
-	DisableHeaderNamesNormalizing: false,             // false means TURN ON nanme normalization
+	DisableHeaderNamesNormalizing: false,             // false means TURN ON name normalization
 	DisablePathNormalizing:        false,             // false means TURN ON path normalization
 }
 
@@ -77,7 +81,7 @@ func (u *Upstream) ProxyMiddleware() fiber.Handler {
 
 			c.Request().SetBodyRaw(body)
 
-			err := proxy.DoTimeout(c, server.URL, 800*time.Millisecond, proxyClient)
+			err := proxy.DoTimeout(c, server.URL, ProxyTimeout, proxyClient)
 			if err == nil {
 				server.MarkAlive()
 				return nil
