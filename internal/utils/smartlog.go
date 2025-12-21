@@ -11,11 +11,10 @@ import (
 const LogThrottleDuration = 5 * time.Second
 
 type LogState struct {
-	LastLogTime  time.Time
-	BlockedCount int64
-	mu           sync.Mutex
+	WindowStart time.Time
+	Count       int64
+	mu          sync.Mutex
 }
-
 type SmartLogger struct {
 	logs sync.Map
 	done chan struct{}
@@ -29,33 +28,32 @@ func NewSmartLogger() *SmartLogger {
 	return sl
 }
 
-func (sl *SmartLogger) ShouldLog(ip string) (bool, int64) {
-	val, loaded := sl.logs.LoadOrStore(ip, &LogState{
-		LastLogTime:  time.Now(),
-		BlockedCount: 1,
+func (sl *SmartLogger) ShouldLog(key string) (bool, int64, time.Duration) {
+	now := time.Now()
+
+	val, _ := sl.logs.LoadOrStore(key, &LogState{
+		WindowStart: now,
+		Count:       0,
 	})
 
 	state := val.(*LogState)
 
-	if !loaded {
-		return true, 1
-	}
-
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
-	now := time.Now()
-
-	if now.Sub(state.LastLogTime) < LogThrottleDuration {
-		state.BlockedCount++
-		return false, 0
+	if now.Sub(state.WindowStart) < LogThrottleDuration {
+		state.Count++
+		return false, 0, 0
 	}
 
-	count := state.BlockedCount
-	state.BlockedCount = 1
-	state.LastLogTime = now
+	// window ended → emit log
+	count := state.Count
+	duration := now.Sub(state.WindowStart)
 
-	return true, count
+	state.WindowStart = now
+	state.Count = 1
+
+	return true, count, duration
 }
 
 func (sl *SmartLogger) cleanupLoop() {
@@ -71,12 +69,17 @@ func (sl *SmartLogger) cleanupLoop() {
 		sl.logs.Range(func(key, value any) bool {
 			state := value.(*LogState)
 			state.mu.Lock()
-			lastLog := state.LastLogTime
-			state.mu.Unlock()
-			if now.Sub(lastLog) > 2*time.Minute {
+			last := state.WindowStart
+			state.mu.Lock()
+			if now.Sub(last) > 3*LogThrottleDuration {
 				sl.logs.Delete(key)
 			}
+
 			return true
 		})
 	}
+}
+
+func (sl *SmartLogger) Shutdown() {
+	close(sl.done)
 }
