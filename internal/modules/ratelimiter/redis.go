@@ -19,6 +19,17 @@ func NewRedisStrategy(client *redis.Client) *RedisStrategy {
 }
 
 func (r *RedisStrategy) Allow(ctx context.Context, key string, limit int, window time.Duration) (bool, error) {
+	// Input validation
+	if window <= 0 {
+		return false, fmt.Errorf("window duration must be positive, got: %v", window)
+	}
+	if limit <= 0 {
+		return false, fmt.Errorf("limit must be positive, got: %d", limit)
+	}
+	if key == "" {
+		return false, fmt.Errorf("key cannot be empty")
+	}
+
 	now := time.Now()
 	currentWindow := now.Unix() / int64(window.Seconds())
 	prevWindow := currentWindow - 1
