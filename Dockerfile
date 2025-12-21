@@ -28,7 +28,6 @@ RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /root/
 
 COPY --from=builder /app/main .
-COPY --from=builder /app/internal/modules/botchallenge/templates ./internal/modules/botchallenge/templates
 
 EXPOSE 8080
 
