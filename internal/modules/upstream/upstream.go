@@ -14,7 +14,7 @@ type Upstream struct {
 	LB   *RoundRobinBalancer
 }
 
-func NewUpstream(name string, servers []string) (*Upstream, error) {
+func NewUpstream(name string, servers []Server) (*Upstream, error) {
 	if len(servers) == 0 {
 		return nil, errors.New("no upstream servers list provided")
 	}

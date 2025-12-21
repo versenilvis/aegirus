@@ -4,14 +4,32 @@ import (
 	"sync/atomic"
 )
 
+type Server struct {
+	Addr   string
+	Weight int
+}
+
 type RoundRobinBalancer struct {
 	servers []string // backend list like ["127.0.0.1:8080", "127.0.0.1:8081"]
 	counter uint64
 }
 
-func NewRoundRobinBalancer(servers []string) *RoundRobinBalancer {
+func NewRoundRobinBalancer(servers []Server) *RoundRobinBalancer {
+	var expanded []string
+	for _, s := range servers {
+		w := s.Weight
+
+		if w < 1 {
+			w = 1
+		}
+
+		for i := 0; i < w; i++ {
+			expanded = append(expanded, s.Addr)
+		}
+
+	}
 	return &RoundRobinBalancer{
-		servers: servers,
+		servers: expanded,
 		counter: 0,
 	}
 }
