@@ -144,9 +144,24 @@ func main() {
 
 	logger.Log.Info("SHUTTING DOWN SERVER...")
 	cancel()
+
+	// Shutdown rate limiter (stops cleanup goroutine if using memory strategy)
+	rl.Shutdown()
+
+	// Shutdown Fiber app
 	if err := app.Shutdown(); err != nil {
 		logger.Log.Error("Error during shutdown", zap.Error(err))
 	}
+
+	// Close Redis client if it was created
+	if rdb != nil {
+		if err := rdb.Close(); err != nil {
+			logger.Log.Error("Error closing Redis client", zap.Error(err))
+		} else {
+			logger.Log.Info("Redis client closed")
+		}
+	}
+
 	// wg.Wait()
 	logger.Log.Info("Cleanup done")
 }
