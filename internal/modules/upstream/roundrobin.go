@@ -58,6 +58,7 @@ func (s *Server) MarkDead() {
 	if fails >= 3 {
 		cooldown := time.Now().Add(10 * time.Second).UnixNano()
 		atomic.StoreInt64(&s.deadUntil, cooldown)
+		atomic.StoreInt32(&s.fails, 0)
 
 		logger.Log.Warn("Upstream marked DEAD (threshold)",
 			zap.String("target", s.URL),
