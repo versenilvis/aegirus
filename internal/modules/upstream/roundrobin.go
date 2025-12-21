@@ -20,8 +20,8 @@ type RoundRobinBalancer struct {
 }
 
 type Target struct {
-	Address string
-	Weight  int
+	Addr   string
+	Weight int
 }
 
 func (s *Server) IsAlive() bool {
@@ -58,7 +58,7 @@ func NewRoundRobinBalancer(targets []Target) *RoundRobinBalancer {
 	uniqueServers := make([]*Server, len(targets))
 	for i, t := range targets {
 		uniqueServers[i] = &Server{
-			URL:    t.Address,
+			URL:    t.Addr,
 			Weight: t.Weight,
 		}
 	}

@@ -67,7 +67,7 @@ func main() {
 		}
 	}
 
-	targets := []upstream.Server{
+	targets := []upstream.Target{
 		{Addr: "http://127.0.0.1:3001", Weight: 3}, // Server A
 		{Addr: "http://127.0.0.1:3002", Weight: 1}, // Server B
 	}
