@@ -144,8 +144,9 @@ func main() {
 		return c.SendString("Request successful")
 	})
 
-	// Proxy to upstream servers if configured
-	if testService != nil {
+	// Proxy to upstream servers if configured (development only)
+	// IMPORTANT: This is test scaffolding and must not run in production
+	if testService != nil && cfg.AppEnv == "development" {
 		app.All("/*", testService.ProxyMiddleware())
 	}
 
