@@ -6,11 +6,13 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"aegirus/internal/config"
 	"aegirus/internal/modules/detector"
 	"aegirus/internal/modules/ratelimiter"
+	"aegirus/internal/modules/upstream"
 	"aegirus/internal/utils"
 	"aegirus/pkg/logger"
 
@@ -66,6 +68,15 @@ func main() {
 		}
 	}
 
+	var testService *upstream.Upstream
+	if len(cfg.Upstreams) > 0 {
+		var err error
+		testService, err = upstream.NewUpstream("upstream-service", cfg.Upstreams)
+		if err != nil {
+			logger.Log.Fatal("Init upstream failed", zap.Error(err))
+		}
+	}
+
 	d := detector.NewDetector(cfg.Detector)
 	rl := ratelimiter.NewManager(cfg.RateLimiter, d, rdb)
 
@@ -86,18 +97,23 @@ func main() {
 		status := c.Response().StatusCode()
 
 		if status == 403 || status == 429 {
-			shouldLog, count := smartLog.ShouldLog(ip)
+			key := ip + "|" + strconv.Itoa(status)
+			shouldLog, count, window := smartLog.ShouldLog(key)
 
 			if shouldLog {
+				logLevel := zap.WarnLevel
 				msg := "Request Blocked"
 				if count > 1 {
 					msg = "Attack Flood Detected (Throttled)"
+				} else {
+					logLevel = zap.InfoLevel
 				}
-				logger.Log.Warn(msg,
+				logger.Log.Log(logLevel, msg,
 					zap.String("req_id", reqID),
 					zap.String("ip", ip),
 					zap.Int("status", status),
 					zap.Int64("recent_blocked_count", count),
+					zap.Duration("window", window),
 				)
 			}
 			return err
@@ -127,6 +143,12 @@ func main() {
 	app.Get("/api/test", func(c fiber.Ctx) error {
 		return c.SendString("Request successful")
 	})
+
+	// Proxy to upstream servers if configured (development only)
+	// IMPORTANT: This is test scaffolding and must not run in production
+	if testService != nil && cfg.AppEnv == "development" {
+		app.All("/*", testService.ProxyMiddleware())
+	}
 
 	// Graceful shutdown for deploy environment like Railway or Render,
 	// you will see air exiting message but you won't see it on deploy environment
