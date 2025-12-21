@@ -11,6 +11,7 @@ import (
 	"aegirus/internal/config"
 	"aegirus/internal/modules/detector"
 	"aegirus/internal/modules/ratelimiter"
+	"aegirus/internal/modules/upstream"
 	"aegirus/internal/utils"
 	"aegirus/pkg/logger"
 
@@ -64,6 +65,16 @@ func main() {
 			logger.Log.Error("Cannot connect to Redis, fallback to Memory", zap.Error(err))
 			rdb = nil
 		}
+	}
+
+	targets := []upstream.Server{
+		{Addr: "http://127.0.0.1:3001", Weight: 3}, // Server A
+		{Addr: "http://127.0.0.1:3002", Weight: 1}, // Server B
+	}
+
+	testService, err := upstream.NewUpstream("local-test", targets)
+	if err != nil {
+		logger.Log.Panic("Init upstream failed", zap.Error(err))
 	}
 
 	d := detector.NewDetector(cfg.Detector)
@@ -127,6 +138,11 @@ func main() {
 	app.Get("/api/test", func(c fiber.Ctx) error {
 		return c.SendString("Request successful")
 	})
+
+	// run mock server first then run main server
+	// try to test with: curl localhost:8080/whateverroute, just dont be / or /api/test
+	// you will see it calls A 3 times and B 1 time
+	app.All("/*", testService.ProxyMiddleware())
 
 	// Graceful shutdown for deploy environment like Railway or Render,
 	// you will see air exiting message but you won't see it on deploy environment
