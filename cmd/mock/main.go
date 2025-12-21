@@ -5,39 +5,34 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
-	"sync"
+	"os"
 )
 
 func main() {
-	var wg sync.WaitGroup
-	wg.Add(2)
+	port := flag.String("port", "3001", "Port to run server on")
+	name := flag.String("name", "A", "Name of the server")
+	flag.Parse()
 
-	// Server A (3001)
-	go func() {
-		defer wg.Done()
-		mux := http.NewServeMux()
-		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Println("--> Server A (3001) received a request")
-			w.Write([]byte("Hello from SERVER A (Port 3001)"))
-		})
-		log.Println("Mock Server A running on :3001")
-		http.ListenAndServe(":3001", mux)
-	}()
+	addr := ":" + *port
 
-	// Server B (3002)
-	go func() {
-		defer wg.Done()
-		mux := http.NewServeMux()
-		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Println("--> Server B (3002) received a request")
-			w.Write([]byte("Hello from SERVER B (Port 3002)"))
-		})
-		log.Println("Mock Server B running on :3002")
-		http.ListenAndServe(":3002", mux)
-	}()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("--> [%s] Server %s received a request\n", *port, *name)
 
-	wg.Wait()
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(fmt.Sprintf("Hello from SERVER %s (Port %s)", *name, *port)))
+	})
+
+	log.Printf("Mock Server %s is running on http://127.0.0.1%s", *name, addr)
+	log.Printf("   (Press Ctrl+C to stop this server)")
+
+	err := http.ListenAndServe(addr, mux)
+	if err != nil {
+		log.Printf("Error starting server: %v\n", err)
+		os.Exit(1)
+	}
 }

@@ -14,5 +14,9 @@ t-all: test-full
 run: # or just use 'air'
 	@cd cmd/aegirus && go run main.go
 
-mock:
-	@cd cmd/mock && go run main.go
+mock-a:
+	@cd cmd/mock && go run main.go -port=3001 -name=A
+
+mock-b:
+	@cd cmd/mock && go run main.go -port=3002 -name=B
+
