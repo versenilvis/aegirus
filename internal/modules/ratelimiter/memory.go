@@ -5,6 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"aegirus/pkg/logger"
+
+	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 )
 
@@ -79,6 +82,12 @@ func (m *MemoryStrategy) Allow(ctx context.Context, key string, limit int, windo
 }
 
 func (m *MemoryStrategy) CleanupRoutine(ctx context.Context, interval, ttl time.Duration) {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Log.Error("panic in CleanupRoutine", zap.Any("panic", r))
+		}
+	}()
+
 	ticker := time.NewTicker(time.Duration(interval))
 	defer ticker.Stop()
 
