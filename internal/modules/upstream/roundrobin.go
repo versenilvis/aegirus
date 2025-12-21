@@ -3,6 +3,10 @@ package upstream
 import (
 	"sync/atomic"
 	"time"
+
+	"aegirus/pkg/logger"
+
+	"go.uber.org/zap"
 )
 
 type Server struct {
@@ -37,19 +41,46 @@ func (s *Server) IsAlive() bool {
 	return false
 }
 
+func (s *Server) MarkAlive() {
+	if atomic.LoadInt32(&s.fails) > 0 {
+		atomic.StoreInt32(&s.fails, 0)
+		atomic.StoreInt64(&s.deadUntil, 0)
+
+		logger.Log.Warn("Upstream marked ALIVE",
+			zap.String("target", s.URL),
+		)
+	}
+}
+
 func (s *Server) MarkDead() {
 	fails := atomic.AddInt32(&s.fails, 1)
 
 	if fails >= 3 {
 		cooldown := time.Now().Add(10 * time.Second).UnixNano()
 		atomic.StoreInt64(&s.deadUntil, cooldown)
+
+		logger.Log.Warn("Upstream marked DEAD (threshold)",
+			zap.String("target", s.URL),
+			zap.Int32("fails", fails),
+			zap.Duration("cooldown", 10*time.Second),
+		)
 	}
 }
 
-func (s *Server) MarkAlive() {
-	if atomic.LoadInt32(&s.fails) > 0 {
+func (s *Server) MarkDeadImmediately() {
+	now := time.Now().UnixNano()
+	prev := atomic.LoadInt64(&s.deadUntil)
+
+	if prev == 0 || now > prev {
+		cooldown := time.Now().Add(10 * time.Second)
+		atomic.StoreInt64(&s.deadUntil, cooldown.UnixNano())
 		atomic.StoreInt32(&s.fails, 0)
-		atomic.StoreInt64(&s.deadUntil, 0)
+
+		logger.Log.Warn("Upstream marked DEAD (immediate)",
+			zap.String("target", s.URL),
+			zap.Duration("cooldown", 10*time.Second),
+		)
+		return
 	}
 }
 

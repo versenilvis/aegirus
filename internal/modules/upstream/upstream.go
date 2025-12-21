@@ -2,6 +2,7 @@ package upstream
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"aegirus/pkg/logger"
@@ -30,6 +31,26 @@ var proxyClient = &fasthttp.Client{
 	DisablePathNormalizing:        false,             // false means TURN ON path normalization
 }
 
+func isNetworkError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+
+	switch {
+	case strings.Contains(msg, "connection refused"):
+		return true
+	case strings.Contains(msg, "timeout"):
+		return true
+	case strings.Contains(msg, "deadline"):
+		return true
+	case strings.Contains(msg, "reset by peer"):
+		return true
+	default:
+		return false
+	}
+}
+
 func NewUpstream(name string, servers []Target) (*Upstream, error) {
 	if len(servers) == 0 {
 		return nil, errors.New("no upstream servers list provided")
@@ -43,26 +64,48 @@ func NewUpstream(name string, servers []Target) (*Upstream, error) {
 
 func (u *Upstream) ProxyMiddleware() fiber.Handler {
 	return func(c fiber.Ctx) error {
-		server := u.LB.Next()
-		if server == nil {
-			logger.Log.Warn("No upstream servers available")
-			return c.Status(502).SendString("Bad Gateway: No upstream available")
-		}
+		body := append([]byte(nil), c.Request().Body()...)
 
-		// https://docs.gofiber.io/next/whats_new#fasthttp-transport-integration
-		err := proxy.DoTimeout(c, server.URL, 10*time.Second, proxyClient)
-		if err != nil {
+		maxAttempts := 2
+		var lastErr error
+
+		for attempts := 0; attempts < maxAttempts; attempts++ {
+			server := u.LB.Next()
+			if server == nil {
+				break
+			}
+
+			c.Request().SetBodyRaw(body)
+
+			err := proxy.DoTimeout(c, server.URL, 800*time.Millisecond, proxyClient)
+			if err == nil {
+				server.MarkAlive()
+				return nil
+			}
+
+			lastErr = err
+			if isNetworkError(err) {
+				server.MarkDeadImmediately()
+				logger.Log.Warn("Target failed (network), retrying",
+					zap.String("url", server.URL),
+					zap.Error(err),
+				)
+				continue
+			}
+
 			server.MarkDead()
-
-			logger.Log.Warn("Upstream Failed",
-				zap.String("upstream", u.Name),
-				zap.String("target", server.URL),
+			logger.Log.Warn("Target failed, retrying",
+				zap.String("url", server.URL),
 				zap.Error(err),
 			)
-			return c.Status(502).SendString("Bad Gateway")
+			continue
 		}
 
-		server.MarkAlive()
-		return nil
+		logger.Log.Warn("All upstreams failed",
+			zap.String("upstream", u.Name),
+			zap.Error(lastErr),
+		)
+
+		return c.Status(503).SendString("Service Unavailable")
 	}
 }
