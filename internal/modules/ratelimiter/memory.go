@@ -66,7 +66,11 @@ func (m *MemoryStrategy) Allow(ctx context.Context, key string, limit int, windo
 			}
 		}
 
-		r := rate.Limit(float64(limit) / windows.Seconds())
+		seconds := windows.Seconds()
+		if seconds <= 0 {
+			seconds = 1
+		}
+		r := rate.Limit(float64(limit) / seconds)
 
 		client = &Client{
 			limiter:  rate.NewLimiter(r, limit),
