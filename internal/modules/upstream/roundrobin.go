@@ -73,15 +73,17 @@ func (s *Server) MarkDeadImmediately() {
 	prev := atomic.LoadInt64(&s.deadUntil)
 
 	if prev == 0 || now > prev {
-		cooldown := time.Now().Add(10 * time.Second)
-		atomic.StoreInt64(&s.deadUntil, cooldown.UnixNano())
-		atomic.StoreInt32(&s.fails, 0)
+		cooldown := now + int64(10*time.Second)
+		// Use CAS to atomically update only if deadUntil hasn't changed
+		if atomic.CompareAndSwapInt64(&s.deadUntil, prev, cooldown) {
+			atomic.StoreInt32(&s.fails, 0)
 
-		logger.Log.Warn("Upstream marked DEAD (immediate)",
-			zap.String("target", s.URL),
-			zap.Duration("cooldown", 10*time.Second),
-		)
-		return
+			logger.Log.Warn("Upstream marked DEAD (immediate)",
+				zap.String("target", s.URL),
+				zap.Duration("cooldown", 10*time.Second),
+			)
+		}
+		// If CAS failed, another goroutine already set a newer cooldown, do nothing
 	}
 }
 
