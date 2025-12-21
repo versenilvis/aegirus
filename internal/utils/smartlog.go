@@ -31,7 +31,7 @@ func NewSmartLogger() *SmartLogger {
 func (sl *SmartLogger) ShouldLog(key string) (bool, int64, time.Duration) {
 	now := time.Now()
 
-	val, _ := sl.logs.LoadOrStore(key, &LogState{
+	val, loaded := sl.logs.LoadOrStore(key, &LogState{
 		WindowStart: now,
 		Count:       0,
 	})
@@ -41,6 +41,14 @@ func (sl *SmartLogger) ShouldLog(key string) (bool, int64, time.Duration) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
+	// If this is a new key (first log), emit it immediately
+	if !loaded {
+		state.Count = 1
+		state.WindowStart = now
+		return true, 1, 0
+	}
+
+	// Existing key: check if within throttle window
 	if now.Sub(state.WindowStart) < LogThrottleDuration {
 		state.Count++
 		return false, 0, 0
@@ -70,7 +78,7 @@ func (sl *SmartLogger) cleanupLoop() {
 			state := value.(*LogState)
 			state.mu.Lock()
 			last := state.WindowStart
-			state.mu.Lock()
+			state.mu.Unlock()
 			if now.Sub(last) > 3*LogThrottleDuration {
 				sl.logs.Delete(key)
 			}
