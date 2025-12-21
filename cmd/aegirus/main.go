@@ -6,11 +6,9 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	"aegirus/internal/config"
-	"aegirus/internal/modules/botchallenge"
 	"aegirus/internal/modules/detector"
 	"aegirus/internal/modules/ratelimiter"
 	"aegirus/internal/utils"
@@ -18,6 +16,8 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
+
 	"go.uber.org/zap"
 )
 
@@ -44,27 +44,35 @@ func main() {
 		zap.String("trusted_proxies", cfg.TrustedProxies),
 		zap.Any("detector", cfg.Detector),
 		zap.Any("rate_limiter", cfg.RateLimiter),
-		zap.Any("bot_challenge", cfg.BotChallenge),
 	)
 
 	app := fiber.New()
 
+	var rdb *redis.Client
+	if cfg.Redis.Addr != "" {
+		opt, err := redis.ParseURL(cfg.Redis.Addr)
+		if err != nil {
+			opt = &redis.Options{
+				Addr:     cfg.Redis.Addr,
+				Password: cfg.Redis.Password,
+				DB:       cfg.Redis.DB,
+			}
+		}
+		rdb = redis.NewClient(opt)
+
+		if err := rdb.Ping(context.Background()).Err(); err != nil {
+			logger.Log.Error("Cannot connect to Redis, fallback to Memory", zap.Error(err))
+			rdb = nil
+		}
+	}
+
 	d := detector.NewDetector(cfg.Detector)
-	rl := ratelimiter.NewRateLimiter(cfg.RateLimiter, d)
-	bc := botchallenge.NewBotChallenge(cfg.BotChallenge)
+	rl := ratelimiter.NewManager(cfg.RateLimiter, d, rdb)
 
 	smartLog := utils.NewSmartLogger()
-	var wg sync.WaitGroup
-	ctx, cancel := context.WithCancel(context.Background())
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		rl.Cleanup(ctx)
-	}()
-	go func() {
-		defer wg.Done()
-		d.Cleanup(ctx)
-	}()
+	// var wg sync.WaitGroup
+	_, cancel := context.WithCancel(context.Background())
+	// wg.Add(2)
 
 	app.Use(func(c fiber.Ctx) error {
 		reqID := utils.GenerateRayID()
@@ -74,28 +82,9 @@ func main() {
 
 		err := c.Next()
 
-		// WARN: REMEMBER TO REMOVE TRUSTED_PROXIES VARIABLE IN YOUR .env IF YOU ARE USING YOUR VPS/LOCAL MACHINE,
-		// BUT IF YOU ARE USING RAILWAY, RENDER, SSH TUNNEL OR NGINX,... OR ANY 3RD PARTY SERVICE SET IT TO TRUE IF YOUR SERVICE IS RUNNING
 		ip := utils.GetRealIP(c)
 		status := c.Response().StatusCode()
-		isChallenge, _ := c.Locals("is_challenge").(bool)
-		if isChallenge {
-			shouldLog, count := smartLog.ShouldLog(ip)
 
-			if shouldLog {
-				msg := "Bot Challenge Triggered"
-				if count > 1 {
-					msg = "Bot Challenge Flood (Throttled)"
-				}
-				logger.Log.Info(msg,
-					zap.String("req_id", reqID),
-					zap.String("ip", ip),
-					zap.String("action", "serving_html_pow"),
-					zap.Int64("recent_count", count),
-				)
-			}
-			return err
-		}
 		if status == 403 || status == 429 {
 			shouldLog, count := smartLog.ShouldLog(ip)
 
@@ -113,15 +102,13 @@ func main() {
 			}
 			return err
 		}
-		// NOTE: set LOG_SAMPLING_RATE=100 in .env -> All log (Debug or development but not recommended)
-		// set LOG_SAMPLING_RATE=10 (or 5) in .env -> 10% log (Production)
-		// set LOG_SAMPLING_RATE=0 in .env -> 0% log (While being ddos, save I/O)
+
 		if rand.Intn(100) < cfg.LogSamplingRate {
 			logger.Log.Info("Request passed",
 				zap.String("req_id", reqID),
 				zap.String("ip", ip),
 				zap.String("path", c.Path()),
-				zap.String("HEADER_XFF", c.Get("X-Forwarded-For")), // just for debug in logs
+				zap.String("HEADER_XFF", c.Get("X-Forwarded-For")),
 				zap.String("method", c.Method()),
 				zap.Int("status", status),
 				zap.String("user_agent", c.Get("User-Agent")),
@@ -131,7 +118,6 @@ func main() {
 	})
 
 	app.Use(d.DetectorMiddleware())
-	app.Use(bc.BotChallengeMiddleware())
 	app.Use(rl.RateLimiterMiddleware())
 
 	app.Get("/", func(c fiber.Ctx) error {
@@ -158,10 +144,24 @@ func main() {
 
 	logger.Log.Info("SHUTTING DOWN SERVER...")
 	cancel()
+
+	// Shutdown rate limiter (stops cleanup goroutine if using memory strategy)
+	rl.Shutdown()
+
+	// Shutdown Fiber app
 	if err := app.Shutdown(); err != nil {
 		logger.Log.Error("Error during shutdown", zap.Error(err))
 	}
-	bc.Close()
-	wg.Wait()
+
+	// Close Redis client if it was created
+	if rdb != nil {
+		if err := rdb.Close(); err != nil {
+			logger.Log.Error("Error closing Redis client", zap.Error(err))
+		} else {
+			logger.Log.Info("Redis client closed")
+		}
+	}
+
+	// wg.Wait()
 	logger.Log.Info("Cleanup done")
 }
