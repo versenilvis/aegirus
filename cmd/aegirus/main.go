@@ -74,7 +74,7 @@ func main() {
 	_, cancel := context.WithCancel(context.Background())
 	// wg.Add(2)
 
-	app.Use(app.Use(func(c fiber.Ctx) error {
+	app.Use(func(c fiber.Ctx) error {
 		reqID := utils.GenerateRayID()
 
 		c.Locals("requestid", reqID)
@@ -115,7 +115,7 @@ func main() {
 			)
 		}
 		return err
-	}))
+	})
 
 	app.Use(d.DetectorMiddleware())
 	app.Use(rl.RateLimiterMiddleware())
