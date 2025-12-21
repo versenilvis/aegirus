@@ -42,7 +42,11 @@ func (r *RedisStrategy) Allow(ctx context.Context, key string, limit int, window
         return 1
     end`
 	elapsedTimeInWindow := float64(now.Unix() % int64(window.Seconds()))
-	weight := elapsedTimeInWindow / float64(window.Seconds())
+	windowSeconds := window.Seconds()
+	if windowSeconds <= 0 {
+		windowSeconds = 1
+	}
+	weight := 1.0 - (elapsedTimeInWindow / windowSeconds)
 
 	status, err := r.client.Eval(ctx, script,
 		[]string{currKey, prevKey},
