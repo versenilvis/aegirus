@@ -88,7 +88,7 @@ func (m *MemoryStrategy) CleanupRoutine(ctx context.Context, interval, ttl time.
 		}
 	}()
 
-	ticker := time.NewTicker(time.Duration(interval))
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
@@ -108,8 +108,15 @@ func (m *MemoryStrategy) CleanupRoutine(ctx context.Context, interval, ttl time.
 
 			if len(expiredKeys) > 0 {
 				m.mu.Lock()
+				now := time.Now().UnixNano()
 				for _, key := range expiredKeys {
-					delete(m.clients, key)
+					// Re-check expiration under write lock to prevent race condition
+					// where client was updated between RUnlock and Lock
+					if client, exists := m.clients[key]; exists {
+						if time.Duration(now-client.lastSeen) > ttl {
+							delete(m.clients, key)
+						}
+					}
 				}
 				m.mu.Unlock()
 			}
