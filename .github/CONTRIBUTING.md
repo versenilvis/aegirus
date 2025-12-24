@@ -2,7 +2,7 @@
 
 Thank you for your interest in Aegirus. We welcome community contributions and appreciate your time and effort in helping improve the project. Before getting started, please take a moment to review these guidelines.
 
-Need to contact? Reach out to my Telegram [@justtheverse](t.me/JustTheVerse).
+Need to contact? Reach out to my Telegram [@VerseNilVis](t.me/VerseNilVis).
 
 ## 1. How to Contribute
 
